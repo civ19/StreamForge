@@ -1,3 +1,5 @@
+#include "spi.h"
+
 #include "driver/spi_master.h"
 #include "driver/spi_slave.h"
 #include "driver/gpio.h"
@@ -47,5 +49,7 @@ esp_err_t init_spi_devs(void) {
     CHECK_ERR(ret = spi_bus_add_device(SPI2_HOST, &dev_conf, &master_handle), return ret);
 
     mutex_log('I', TAG, "SPI Dev Interface Initialized Successfully.");
+
+    return ESP_OK;
 
 }
