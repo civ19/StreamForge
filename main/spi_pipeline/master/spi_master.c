@@ -1,4 +1,4 @@
-#include "spi.h"
+#include "spi_master.h"
 
 #include "driver/spi_master.h"
 #include "driver/spi_slave.h"
