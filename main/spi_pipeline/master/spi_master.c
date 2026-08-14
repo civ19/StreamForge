@@ -12,7 +12,7 @@
 #define SCLK GPIO_NUM_12
 #define CS GPIO_NUM_10
 
-static const char *TAG = "SPI";
+static const char *TAG = "SPI_MASTER";
 
 spi_device_handle_t master_handle; 
 
