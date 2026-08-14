@@ -1,2 +1,7 @@
 idf_component_register(SRCS "main.c"
-                    INCLUDE_DIRS ".")
+                            "spi_pipeline/spi.c"
+                            "utils/forge_log.c"
+                    
+                    INCLUDE_DIRS "."
+                    REQUIRES driver
+                    )
