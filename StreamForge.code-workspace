@@ -1,0 +1,21 @@
+{
+	"folders": [
+		{
+			"name": "Production - Master",
+			"path": "./spi_master"
+		},
+		{
+			"name": "Production - Slave",
+			"path": "./spi_slave"
+		},
+		{
+			"name": "Production - Test",
+			"path": "./test_app"
+		},
+		{
+			"name": "Production - Shared",
+			"path": "./shared"
+		}
+	],
+	"settings": {}
+}

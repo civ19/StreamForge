@@ -1,14 +1,16 @@
 #include "spi_slave.h"
+
 #include "driver/spi_slave.h"
 #include "driver/gpio.h"
 
-#include "utils/forge_err.h"
-#include "utils/forge_log.h"
+#include "forge_err.h"
+#include "forge_log.h"
 
+//esp32s3
 #define MOSI GPIO_NUM_11
 #define MISO GPIO_NUM_13
 #define SCLK GPIO_NUM_12
-#define CS GPIO_NUM_10
+#define CS   GPIO_NUM_14
 
 static const char *TAG = "SPI_SLAVE";
 
