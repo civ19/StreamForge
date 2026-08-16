@@ -1,17 +1,16 @@
 #include "spi_master.h"
 
 #include "driver/spi_master.h"
-#include "driver/spi_slave.h"
 #include "driver/gpio.h"
 
 #include "forge_err.h"
-#include "/forge_log.h"
+#include "forge_log.h"
 
-//esp32 base
-#define MOSI GPIO_NUM_23
-#define MISO GPIO_NUM_19
-#define SCLK GPIO_NUM_18
-#define CS   GPIO_NUM_5
+//esp32s3
+#define MOSI GPIO_NUM_11
+#define MISO GPIO_NUM_13
+#define SCLK GPIO_NUM_12
+#define CS   GPIO_NUM_14
 
 static const char *TAG = "SPI_MASTER";
 
