@@ -8,12 +8,11 @@
 
 void app_main(void) {
 
-    static const char *TAG = "MAIN";
+    static const char *TAG = "MAIN_MASTER";
     
     esp_err_t err;
 
     CHECK_ERR(err = init_spi_bus(), return err);
-    CHECK_ERR(err = init_slave_bus(), return err);
     CHECK_ERR(err = init_spi_devs(), return err);
     
     CHECK_ERR(err = master_trasmit(), return err);
