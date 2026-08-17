@@ -6,7 +6,7 @@
 
 #include "forge_err.h"
 #include "forge_log.h"
-#include "dma/dma_master.h"
+#include "dma_master.h"
 
 //esp32s3
 #define MOSI GPIO_NUM_11
@@ -85,6 +85,9 @@ esp_err_t master_trasmit(void) {
 
     CHECK_ERR(ret = spi_device_queue_trans(master_handle, &_trans, portMAX_DELAY), return ret); //qeued for transmit
     CHECK_ERR(ret = spi_device_get_trans_result(master_handle, &_trans_addr, portMAX_DELAY), return ret); //actual returned result
+    free(tx_buf);
+    free(rx_buf);
+
 
     mutex_log('I', TAG, "SPI Device Master Transmit Successful.");
 
