@@ -2,9 +2,11 @@
 
 #include "driver/spi_master.h"
 #include "driver/gpio.h"
+#include <string.h>
 
 #include "forge_err.h"
 #include "forge_log.h"
+#include "dma/dma_master.h"
 
 //esp32s3
 #define MOSI GPIO_NUM_11
@@ -55,13 +57,18 @@ esp_err_t init_spi_devs(void) {
 }
 
 esp_err_t master_trasmit(void) {
-    
-    uint8_t tx_buf[16] = {
+
+    uint8_t tx_data[16] = {
         0x01, 0x02, 0x03, 0x04,
         0x05, 0x06, 0x07, 0x08,
         0x09, 0x0A, 0x0B, 0x0C,
         0x0D, 0x0E, 0x0F, 0x10
     };
+    
+    uint8_t *tx_buf = dma_alloc(256); //dma buf
+    
+    memcpy(tx_buf, tx_data, sizeof(tx_data));
+    
     uint8_t rx_buf[16] = {};
 
     spi_transaction_t _trans = {};
