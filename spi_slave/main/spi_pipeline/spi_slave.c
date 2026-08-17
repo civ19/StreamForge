@@ -5,6 +5,7 @@
 
 #include "forge_err.h"
 #include "forge_log.h"
+#include "dma_master.h"
 
 //esp32 base
 #define MOSI GPIO_NUM_23
@@ -26,26 +27,45 @@ esp_err_t init_slave_bus(void) {
 
 
     esp_err_t ret;
-    CHECK_ERR(ret = spi_bus_initialize(SPI2_HOST, &slave_bus_conf, SPI_DMA_CH_AUTO), return ret);
+     
+
+    spi_slave_interface_config_t slave_cfg = {};
+    slave_cfg.mode = 0;
+    slave_cfg.queue_size = 1;
+    slave_cfg.spics_io_num = CS;
+
+    CHECK_ERR(ret = spi_slave_initialize(SPI2_HOST, &slave_bus_conf, &slave_cfg, SPI_DMA_CH_AUTO), return ret);
 
     return ESP_OK;
 
 }
 
 esp_err_t slave_transmit(void) {
+
+    size_t packet_size = 256;
+
     uint8_t tx_buf[16] = {};
-    uint8_t rx_buf[16];
+    uint8_t* rx_buf = dma_alloc(packet_size);
+
+    
 
     spi_slave_transaction_t _trans = {};
-    _trans.length = sizeof(rx_buf) * 8; //128 bits
+    _trans.length = packet_size * 8; //128 bits
     _trans.rx_buffer = rx_buf;
     _trans.tx_buffer = tx_buf;
 
     esp_err_t ret;
 
-    CHECK_ERR(ret = spi_slave_transmit(SPI2_HOST, &_trans, portMAX_DELAY), return ret); //error checking it via macro
+    spi_slave_transaction_t *trans_addr = &_trans;
+
+    CHECK_ERR(ret = spi_slave_queue_trans(SPI2_HOST, &_trans, portMAX_DELAY), return ret);
+
+    CHECK_ERR(ret = spi_slave_get_trans_result(SPI2_HOST, &trans_addr, portMAX_DELAY), return ret);
+
 
     mutex_log('I', TAG, "SPI Slave transaction completed successfully.");
+
+    
 
     return ESP_OK;
 
