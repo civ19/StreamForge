@@ -25,8 +25,9 @@ esp_err_t init_slave_bus(void) {
     slave_bus_conf.quadwp_io_num = -1;
     slave_bus_conf.sclk_io_num = SCLK;
 
-
+    mutex_log('I', TAG, "SPI Slave bus initialized.");
     esp_err_t ret;
+
      
 
     spi_slave_interface_config_t slave_cfg = {};
@@ -36,7 +37,9 @@ esp_err_t init_slave_bus(void) {
 
     CHECK_ERR(ret = spi_slave_initialize(SPI2_HOST, &slave_bus_conf, &slave_cfg, SPI_DMA_CH_AUTO), return ret);
 
+    mutex_log('I', TAG, "SPI Slave dev initialized.");
     return ESP_OK;
+
 
 }
 
