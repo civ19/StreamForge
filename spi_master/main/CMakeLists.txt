@@ -7,4 +7,6 @@ idf_component_register(SRCS "main.c"
                                  "spi_pipeline"
                                  "../../shared/utils"
                     REQUIRES driver
+                             esp_driver_spi
+                             
                     )
