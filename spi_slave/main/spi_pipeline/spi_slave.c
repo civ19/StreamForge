@@ -45,12 +45,10 @@ esp_err_t init_slave_bus(void) {
 
 esp_err_t slave_transmit(void) {
 
-    size_t packet_size = 256;
+    size_t packet_size = 128;
 
     uint8_t tx_buf[16] = {};
-    uint8_t* rx_buf = dma_alloc(packet_size);
-
-    
+    uint8_t* rx_buf = dma_alloc(packet_size); //allocating memory for the buffer from master tv
 
     spi_slave_transaction_t _trans = {};
     _trans.length = packet_size * 8; //128 bits
@@ -62,6 +60,8 @@ esp_err_t slave_transmit(void) {
     spi_slave_transaction_t *trans_addr = &_trans;
 
     CHECK_ERR(ret = spi_slave_queue_trans(SPI2_HOST, &_trans, portMAX_DELAY), return ret);
+    ESP_LOG_BUFFER_HEX(TAG, &rx_buf, packet_size); 
+
 
     CHECK_ERR(ret = spi_slave_get_trans_result(SPI2_HOST, &trans_addr, portMAX_DELAY), return ret);
 
