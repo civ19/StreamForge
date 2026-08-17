@@ -9,10 +9,10 @@
 #include "dma_master.h"
 
 //esp32s3
-#define MOSI GPIO_NUM_11
-#define MISO GPIO_NUM_13
-#define SCLK GPIO_NUM_12
-#define CS   GPIO_NUM_14
+#define MOSI GPIO_NUM_13 
+#define MISO GPIO_NUM_14 
+#define SCLK GPIO_NUM_9  
+#define CS   GPIO_NUM_10 
 
 static const char *TAG = "SPI_MASTER";
 
