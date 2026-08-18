@@ -19,7 +19,9 @@ void app_main(void) {
 
     CHECK_ERR(err = init_spi_bus(), return);
     CHECK_ERR(err = init_spi_devs(), return);
+
+    vTaskDelay(pdMS_TO_TICKS(3000));
     
-    CHECK_ERR(err = master_trasmit(), return);
+    CHECK_ERR(err = master_transmit(), return);
 
 }

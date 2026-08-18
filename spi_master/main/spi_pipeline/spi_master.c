@@ -3,16 +3,18 @@
 #include "driver/spi_master.h"
 #include "driver/gpio.h"
 #include <string.h>
+#include "esp_log.h"
 
 #include "forge_err.h"
 #include "forge_log.h"
 #include "dma_master.h"
 
 //esp32s3
-#define MOSI GPIO_NUM_13 
-#define MISO GPIO_NUM_14 
-#define SCLK GPIO_NUM_9  
-#define CS   GPIO_NUM_10 
+// ESP32-S3 WROOM N8R8 — SPI master
+#define MOSI GPIO_NUM_11
+#define MISO GPIO_NUM_13
+#define SCLK GPIO_NUM_12
+#define CS   GPIO_NUM_14
 
 static const char *TAG = "SPI_MASTER";
 
@@ -56,9 +58,9 @@ esp_err_t init_spi_devs(void) {
 
 }
 
-esp_err_t master_trasmit(void) {
-
-    size_t packet_size = 256;
+esp_err_t master_transmit_task(void)
+{
+    const size_t packet_size = 16;
 
     uint8_t tx_data[16] = {
         0x01, 0x02, 0x03, 0x04,
@@ -66,38 +68,42 @@ esp_err_t master_trasmit(void) {
         0x09, 0x0A, 0x0B, 0x0C,
         0x0D, 0x0E, 0x0F, 0x10
     };
-    
-    uint8_t *tx_buf = dma_alloc(packet_size); //dma buf
-    
-    memcpy(tx_buf, tx_data, sizeof(tx_data));
-    
-    uint8_t *rx_buf = dma_alloc(packet_size); //expecting 256 bytes back
 
-    spi_transaction_t _trans = {};
-    _trans.tx_buffer = tx_buf;
-    _trans.rx_buffer = rx_buf;
-    _trans.length = packet_size*8; //since 256 bytes per data packet, and for now im sending 8 packets
+    while (1) {
 
+        uint8_t *tx_buf = dma_alloc(packet_size);
+        uint8_t *rx_buf = dma_alloc(packet_size);
 
-    esp_err_t ret;
+        if (tx_buf == NULL || rx_buf == NULL) {
+            mutex_log('E', TAG, "DMA allocation failed");
+            free(tx_buf);
+            free(rx_buf);
+            return ESP_ERR_NO_MEM;
+        }
 
-    spi_transaction_t* _trans_addr = &_trans; //ptr to trans for trans result
+        memcpy(tx_buf, tx_data, packet_size);
+        memset(rx_buf, 0x00, packet_size);
 
-    CHECK_ERR(ret = spi_device_queue_trans(master_handle, &_trans, portMAX_DELAY), return ret); //qeued for transmit
-    CHECK_ERR(ret = spi_device_get_trans_result(master_handle, &_trans_addr, portMAX_DELAY), return ret); //actual returned result
-    free(tx_buf);
-    free(rx_buf);
+        spi_transaction_t _trans = {};
+        _trans.tx_buffer = tx_buf;
+        _trans.rx_buffer = rx_buf;
+        _trans.length = packet_size * 8;
 
+        esp_err_t ret;
 
-    mutex_log('I', TAG, "SPI Device Master Transmit Successful.");
+        spi_transaction_t *trans_addr = &_trans;
+
+        CHECK_ERR(ret = spi_device_queue_trans(master_handle,&_trans, portMAX_DELAY), return ret);
+
+        CHECK_ERR( ret = spi_device_get_trans_result(master_handle,&trans_addr,portMAX_DELAY), return ret);
+
+        ESP_LOG_BUFFER_HEX(TAG, tx_buf, packet_size);
+
+        free(tx_buf);
+        free(rx_buf);
+
+        vTaskDelay(pdMS_TO_TICKS(100));
+    }
 
     return ESP_OK;
-
-
-
-}
-
-void trans_manage(uint8_t *buf, spi_transaction_t _trans) {
-    spi_device_queue_trans(master_handle, &_trans, portMAX_DELAY);
-    
 }
