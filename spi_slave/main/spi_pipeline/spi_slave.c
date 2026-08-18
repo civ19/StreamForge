@@ -44,11 +44,11 @@ esp_err_t init_slave_bus(void) {
 
 }
 
-esp_err_t slave_transmit(void)
+esp_err_t slave_transmit_task(void)
 {
     const size_t packet_size = 16;
 
-    while (1) {
+    for(;;) {
 
         uint8_t *tx_buf = dma_slave_alloc(packet_size);
         uint8_t *rx_buf = dma_slave_alloc(packet_size);
@@ -61,24 +61,24 @@ esp_err_t slave_transmit(void)
         }
 
         memset(tx_buf, 0x00, packet_size);
-        memset(rx_buf, 0x00, packet_size);
 
         spi_slave_transaction_t _trans = {};
 
         _trans.length = packet_size * 8;
         _trans.tx_buffer = tx_buf;
-        trans.rx_buffer = rx_buf;
+        _trans.rx_buffer = rx_buf;
 
         esp_err_t ret;
 
         spi_slave_transaction_t *trans_addr = &_trans;
 
-        CHECK_ERR(ret = spi_slave_queue_trans(SPI2_HOST,&trans,portMAX_DELAY), return ret);
+        CHECK_ERR(ret = spi_slave_queue_trans(SPI2_HOST,&_trans,portMAX_DELAY), return ret);
 
-        CHECK_ERR(
-            ret = spi_slave_get_trans_result(SPI2_HOST, &trans_addr, portMAX_DELAY),return ret);
+        CHECK_ERR( ret = spi_slave_get_trans_result(SPI2_HOST, &trans_addr, portMAX_DELAY),return ret);
 
         ESP_LOG_BUFFER_HEX(TAG, rx_buf, packet_size);
+
+        memset(rx_buf, 0x00, packet_size);
 
         free(tx_buf);
         free(rx_buf);

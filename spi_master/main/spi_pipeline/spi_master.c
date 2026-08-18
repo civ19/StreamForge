@@ -4,6 +4,7 @@
 #include "driver/gpio.h"
 #include <string.h>
 #include "esp_log.h"
+#include <assert.h>
 
 #include "forge_err.h"
 #include "forge_log.h"
@@ -69,12 +70,12 @@ esp_err_t master_transmit_task(void)
         0x0D, 0x0E, 0x0F, 0x10
     };
 
-    while (1) {
+    uint8_t *tx_buf = dma_alloc(packet_size);
+    uint8_t *rx_buf = dma_alloc(packet_size);
 
-        uint8_t *tx_buf = dma_alloc(packet_size);
-        uint8_t *rx_buf = dma_alloc(packet_size);
+    for(;;) {
 
-        if (tx_buf == NULL || rx_buf == NULL) {
+        if (tx_buf == NULL || rx_buf == NULL) { //validation check 
             mutex_log('E', TAG, "DMA allocation failed");
             free(tx_buf);
             free(rx_buf);
@@ -82,6 +83,7 @@ esp_err_t master_transmit_task(void)
         }
 
         memcpy(tx_buf, tx_data, packet_size);
+
         memset(rx_buf, 0x00, packet_size);
 
         spi_transaction_t _trans = {};
@@ -99,11 +101,15 @@ esp_err_t master_transmit_task(void)
 
         ESP_LOG_BUFFER_HEX(TAG, tx_buf, packet_size);
 
-        free(tx_buf);
-        free(rx_buf);
+        memset(tx_buf, 0x00, packet_size); //clearing buf to then reuse
+
+        
 
         vTaskDelay(pdMS_TO_TICKS(100));
     }
+
+    free(tx_buf);
+        free(rx_buf);
 
     return ESP_OK;
 }

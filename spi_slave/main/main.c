@@ -19,6 +19,6 @@ void app_main(void) {
 
     CHECK_ERR(err = init_slave_bus(), return);
     
-    CHECK_ERR(err = slave_transmit(), return);
+    CHECK_ERR(err = slave_transmit_task(), return);
 
 }

@@ -22,6 +22,6 @@ void app_main(void) {
 
     vTaskDelay(pdMS_TO_TICKS(3000));
     
-    CHECK_ERR(err = master_transmit(), return);
+    CHECK_ERR(err = master_transmit_task(), return);
 
 }
