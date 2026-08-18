@@ -2,6 +2,7 @@
 
 #include "driver/spi_slave.h"
 #include "driver/gpio.h"
+#include "esp_log.h"
 
 #include "forge_err.h"
 #include "forge_log.h"
@@ -43,35 +44,47 @@ esp_err_t init_slave_bus(void) {
 
 }
 
-esp_err_t slave_transmit(void) {
+esp_err_t slave_transmit(void)
+{
+    const size_t packet_size = 16;
 
-    size_t packet_size = 128;
+    while (1) {
 
-    uint8_t tx_buf[16] = {};
-    uint8_t* rx_buf = dma_alloc(packet_size); //allocating memory for the buffer from master tv
+        uint8_t *tx_buf = dma_slave_alloc(packet_size);
+        uint8_t *rx_buf = dma_slave_alloc(packet_size);
 
-    spi_slave_transaction_t _trans = {};
-    _trans.length = packet_size * 8; //128 bits
-    _trans.rx_buffer = rx_buf;
-    _trans.tx_buffer = tx_buf;
+        if (tx_buf == NULL || rx_buf == NULL) {
+            mutex_log('E', TAG, "DMA allocation failed");
+            free(tx_buf);
+            free(rx_buf);
+            return ESP_ERR_NO_MEM;
+        }
 
-    esp_err_t ret;
+        memset(tx_buf, 0x00, packet_size);
+        memset(rx_buf, 0x00, packet_size);
 
-    spi_slave_transaction_t *trans_addr = &_trans;
+        spi_slave_transaction_t _trans = {};
 
-    CHECK_ERR(ret = spi_slave_queue_trans(SPI2_HOST, &_trans, portMAX_DELAY), return ret);
-    ESP_LOG_BUFFER_HEX(TAG, &rx_buf, packet_size); 
+        _trans.length = packet_size * 8;
+        _trans.tx_buffer = tx_buf;
+        trans.rx_buffer = rx_buf;
 
+        esp_err_t ret;
 
-    CHECK_ERR(ret = spi_slave_get_trans_result(SPI2_HOST, &trans_addr, portMAX_DELAY), return ret);
+        spi_slave_transaction_t *trans_addr = &_trans;
 
+        CHECK_ERR(ret = spi_slave_queue_trans(SPI2_HOST,&trans,portMAX_DELAY), return ret);
 
-    mutex_log('I', TAG, "SPI Slave transaction completed successfully.");
+        CHECK_ERR(
+            ret = spi_slave_get_trans_result(SPI2_HOST, &trans_addr, portMAX_DELAY),return ret);
 
-    
+        ESP_LOG_BUFFER_HEX(TAG, rx_buf, packet_size);
+
+        free(tx_buf);
+        free(rx_buf);
+
+        vTaskDelay(pdMS_TO_TICKS(100));
+    }
 
     return ESP_OK;
-
-
-    
 }
