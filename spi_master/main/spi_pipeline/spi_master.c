@@ -85,7 +85,7 @@ esp_err_t check_bufs(uint8_t* tx_buf, uint8_t* rx_buf, const char* msg) {
 uint8_t scale_data(size_t N) { //scalability function
     uint8_t n = 0; //number inside each tx_data val
 
-    uint8_t tx_data[N]; 
+    uint8_t tx_data[N]; //N being how many bytes for the array
 
     for(int i = 0; i<N; i++) { //0x01 = 1
         tx_data[i] = (uint8_t)n;
@@ -125,19 +125,7 @@ esp_err_t master_transmit_task(void)
     uint8_t *tx_buf[t_n]; //ptrs to the buffers were gonna allocate later
     uint8_t *rx_buf[t_n];
 
-    uint8_t tx_d1[16] = {
-        0x01, 0x02, 0x03, 0x04,
-        0x05, 0x06, 0x07, 0x08,
-        0x09, 0x0A, 0x0B, 0x0C,
-        0x0D, 0x0E, 0x0F, 0x10
-    };
-
-    uint8_t tx_d2[16] = {
-        0x11, 0x22, 0x33, 0x44,
-        0x05, 0xe6, 0xe7, 0x08,
-        0x09, 0xeA, 0x0B, 0x0C,
-        0x0D, 0x0E, 0xeF, 0x10
-    };
+    tx_data[packet_size] = scale_data(packet_size); //entire tx_data array for inf transactions
 
     //now allocating trhe buffers
 
