@@ -80,11 +80,26 @@ esp_err_t check_bufs(uint8_t* tx_buf, uint8_t* rx_buf, const char* msg) {
     }
 }
 
+void manage_trans(size_t N) { //scalability function
+    uint8_t n = 0; //number inside each tx_data val
+
+    uint8_t tx_data[N]; 
+
+    for(int i = 0; i<N; i++) { //0x01 = 1
+        tx_data[i] = (uint8_t)n;
+        n++;
+
+    }
+
+
+}
 esp_err_t master_transmit_task(void)
 {
     size_t packet_size = 16;
     size_t t_n = 2; //number of transactions
     esp_err_t ret;
+
+    spi_transaction_t _trans[t_n]; //array of transactions
 
     uint8_t tx_d1[16] = {
         0x01, 0x02, 0x03, 0x04,
