@@ -1,7 +1,7 @@
 #pragma once
 
 #include "esp_err.h"
-#include "spi_master.h"
+#include "driver/spi_master.h"
 
 
 esp_err_t init_spi_bus(void);

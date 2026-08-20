@@ -78,9 +78,11 @@ esp_err_t check_bufs(uint8_t* tx_buf, uint8_t* rx_buf, const char* msg) {
         free(rx_buf);
         return ESP_ERR_NO_MEM;
     }
+
+    return ESP_OK;
 }
 
-void manage_trans(size_t N) { //scalability function
+uint8_t scale_data(size_t N) { //scalability function
     uint8_t n = 0; //number inside each tx_data val
 
     uint8_t tx_data[N]; 
@@ -88,18 +90,38 @@ void manage_trans(size_t N) { //scalability function
     for(int i = 0; i<N; i++) { //0x01 = 1
         tx_data[i] = (uint8_t)n;
         n++;
-
     }
 
-
+    return tx_data;
 }
+
+void scale_buf_alloc(uint8_t* tx_buf, uint8_t* rx_buf, size_t n_bufs, size_t bytes) {
+    
+    esp_err_t ret;
+
+    for(int i = 0; i<n_bufs; i++) { //allocating the bytes. n_bufs ius number of buffers were doing, which is equal to the trasnactions numnber
+        tx_buf[i] = dma_alloc(bytes);
+        rx_buf[i] = dma_alloc(bytes);
+
+        ret = check_bufs(tx_buf[i], rx_buf[i], "dma_alloc Pre loop failed. No Memory.");
+        if (ret != ESP_OK) return ret;
+    }
+}
+
+spi_transaction_t scale_trans(size_t N, uint8_t *tx_buf, uint8_t *rx_buf, size_t p_size) {
+    spi_transaction_t _trans[N];
+
+    for(int i = 0; i<N; i++) init_trans(tx_buf[i], rx_buf[i], p_size);
+}
+
 esp_err_t master_transmit_task(void)
 {
-    size_t packet_size = 16;
+    size_t packet_size = 16; //16 for 16 bytes
     size_t t_n = 2; //number of transactions
     esp_err_t ret;
 
     spi_transaction_t _trans[t_n]; //array of transactions
+    uint8_t tx_data[packet_size];
 
     uint8_t tx_d1[16] = {
         0x01, 0x02, 0x03, 0x04,
