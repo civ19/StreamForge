@@ -46,7 +46,7 @@ esp_err_t init_spi_devs(void) {
         .clock_speed_hz = 1 * 1000 * 1000, //1mhz
         .mode = 0,
         .spics_io_num = CS, //cs gpio
-        .queue_size = 1, 
+        .queue_size = 2, 
     };
 
     esp_err_t ret;
@@ -59,19 +59,37 @@ esp_err_t init_spi_devs(void) {
 
 }
 
+spi_transaction_t init_trans(uint8_t *tx_buf, uint8_t *rx_buf, size_t p_size) { //since i want the ptr to the buffers not the values in it
+
+    spi_transaction_t _trans = {};
+    _trans.tx_buffer = tx_buf;
+    _trans.rx_buffer = rx_buf;
+    _trans.length = p_size * 8;
+
+    return _trans; //also this is just a helper function to generate transactions. will be good for scale/when you want alot of transactions asyncrhonously
+
+}
+
 esp_err_t master_transmit_task(void)
 {
-    const size_t packet_size = 16;
+    size_t packet_size = 128;
 
-    uint8_t tx_data[16] = {
+    uint8_t tx_d1[16] = {
         0x01, 0x02, 0x03, 0x04,
         0x05, 0x06, 0x07, 0x08,
         0x09, 0x0A, 0x0B, 0x0C,
         0x0D, 0x0E, 0x0F, 0x10
     };
 
-    uint8_t *tx_buf = dma_alloc(packet_size);
-    uint8_t *rx_buf = dma_alloc(packet_size);
+    uint8_t tx_d2[16] = {
+        0x11, 0x22, 0x33, 0x44,
+        0x05, 0xe6, 0xe7, 0x08,
+        0x09, 0xeA, 0x0B, 0x0C,
+        0x0D, 0x0E, 0xeF, 0x10
+    };
+
+    uint8_t *tx_buf1 = dma_alloc(packet_size);
+    uint8_t *rx_buf1 = dma_alloc(packet_size);
 
     for(;;) {
 
@@ -86,14 +104,14 @@ esp_err_t master_transmit_task(void)
 
         memset(rx_buf, 0x00, packet_size);
 
-        spi_transaction_t _trans = {};
-        _trans.tx_buffer = tx_buf;
-        _trans.rx_buffer = rx_buf;
-        _trans.length = packet_size * 8;
+        
 
         esp_err_t ret;
 
-        spi_transaction_t *trans_addr = &_trans;
+        spi_transaction_t _trans1 = init_trans(&tx_buf, &rx_buf, packet_size);
+        spi_transaction_t *trans_addr = &_trans1; //trans1 addr
+
+        //spi_transaction_t _trans2 = init_trans(&)
 
         CHECK_ERR(ret = spi_device_queue_trans(master_handle,&_trans, portMAX_DELAY), return ret);
 
@@ -109,7 +127,7 @@ esp_err_t master_transmit_task(void)
     }
 
     free(tx_buf);
-        free(rx_buf);
+    free(rx_buf);
 
     return ESP_OK;
 }
