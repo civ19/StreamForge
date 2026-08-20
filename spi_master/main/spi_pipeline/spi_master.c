@@ -70,9 +70,21 @@ spi_transaction_t init_trans(uint8_t *tx_buf, uint8_t *rx_buf, size_t p_size) { 
 
 }
 
+esp_err_t check_bufs(uint8_t* tx_buf, uint8_t* rx_buf, const char* msg) {
+
+    if (tx_buf == NULL || rx_buf == NULL) { //validation check 
+        mutex_log('E', TAG, msg);
+        free(tx_buf);
+        free(rx_buf);
+        return ESP_ERR_NO_MEM;
+    }
+}
+
 esp_err_t master_transmit_task(void)
 {
-    size_t packet_size = 128;
+    size_t packet_size = 16;
+    size_t t_n = 2; //number of transactions
+    esp_err_t ret;
 
     uint8_t tx_d1[16] = {
         0x01, 0x02, 0x03, 0x04,
@@ -88,46 +100,59 @@ esp_err_t master_transmit_task(void)
         0x0D, 0x0E, 0xeF, 0x10
     };
 
-    uint8_t *tx_buf1 = dma_alloc(packet_size);
+    uint8_t *tx_buf1 = dma_alloc(packet_size); //allocations
     uint8_t *rx_buf1 = dma_alloc(packet_size);
+
+    ret = check_bufs(tx_buf1, rx_buf1, "dma_alloc Pre loop failed. No Memory.");
+    if (ret != ESP_OK) return ret;
+
+    uint8_t *tx_buf2 = dma_alloc(packet_size);
+    uint8_t *rx_buf2 = dma_alloc(packet_size);
+
+    ret = check_bufs(tx_buf2, rx_buf2, "dma_alloc Pre loop failed. No Memory.");
+    if (ret != ESP_OK) return ret;
 
     for(;;) {
 
-        if (tx_buf == NULL || rx_buf == NULL) { //validation check 
-            mutex_log('E', TAG, "DMA allocation failed");
-            free(tx_buf);
-            free(rx_buf);
-            return ESP_ERR_NO_MEM;
-        }
+        
+        memcpy(tx_buf1, tx_d1, packet_size); //copyinh 
+        memset(rx_buf1, 0x00, packet_size);
 
-        memcpy(tx_buf, tx_data, packet_size);
-
-        memset(rx_buf, 0x00, packet_size);
-
+        memcpy(tx_buf2, tx_d2, packet_size);
+        memset(rx_buf2, 0x00, packet_size);
+     
         
 
-        esp_err_t ret;
+        spi_transaction_t _trans1 = init_trans(tx_buf1, rx_buf1, packet_size);
+        spi_transaction_t *t1_addr = &_trans1; //trans1 addr
 
-        spi_transaction_t _trans1 = init_trans(&tx_buf, &rx_buf, packet_size);
-        spi_transaction_t *trans_addr = &_trans1; //trans1 addr
+        spi_transaction_t _trans2 = init_trans(tx_buf2, rx_buf2, packet_size);
+        spi_transaction_t *t2_addr = &_trans2; //trans2 addr
 
-        //spi_transaction_t _trans2 = init_trans(&)
 
-        CHECK_ERR(ret = spi_device_queue_trans(master_handle,&_trans, portMAX_DELAY), return ret);
+        CHECK_ERR(ret = spi_device_queue_trans(master_handle,&_trans1, portMAX_DELAY), return ret);
+        CHECK_ERR(ret = spi_device_queue_trans(master_handle,&_trans2, portMAX_DELAY), return ret);
 
-        CHECK_ERR( ret = spi_device_get_trans_result(master_handle,&trans_addr,portMAX_DELAY), return ret);
+        mutex_log('I', TAG, "All transactions successfully queued. Results incoming...");
 
-        ESP_LOG_BUFFER_HEX(TAG, tx_buf, packet_size);
+        CHECK_ERR( ret = spi_device_get_trans_result(master_handle,&t1_addr,portMAX_DELAY), return ret);
+        CHECK_ERR( ret = spi_device_get_trans_result(master_handle,&t2_addr,portMAX_DELAY), return ret);
 
-        memset(tx_buf, 0x00, packet_size); //clearing buf to then reuse
+        ESP_LOG_BUFFER_HEX(TAG, tx_buf1, packet_size);
+        ESP_LOG_BUFFER_HEX(TAG, tx_buf2, packet_size);
+
+        memset(tx_buf1, 0x00, packet_size); //clearing buf to then reuse
+        memset(tx_buf2, 0x00, packet_size); //clearing buf to then reuse
 
         
-
         vTaskDelay(pdMS_TO_TICKS(100));
     }
 
-    free(tx_buf);
-    free(rx_buf);
+    free(tx_buf1);
+    free(tx_buf2);
+
+    free(rx_buf1);
+    free(rx_buf2);
 
     return ESP_OK;
 }
