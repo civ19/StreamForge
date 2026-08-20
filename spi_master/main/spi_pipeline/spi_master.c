@@ -83,13 +83,13 @@ esp_err_t check_bufs(uint8_t* tx_buf, uint8_t* rx_buf, const char* msg) {
 }
 
 uint8_t scale_data(size_t N) { //scalability function
-    uint8_t n = 0; //number inside each tx_data val
+    uint8_t val = 0; //number inside each tx_data val
 
     uint8_t tx_data[N]; //N being how many bytes for the array
 
     for(int i = 0; i<N; i++) { //0x01 = 1
-        tx_data[i] = (uint8_t)n;
-        n++;
+        tx_data[i] = (uint8_t)val;
+        val++;
     }
 
     return tx_data;
@@ -108,10 +108,16 @@ void scale_buf_alloc(uint8_t* tx_buf, uint8_t* rx_buf, size_t n_bufs, size_t byt
     }
 }
 
-spi_transaction_t scale_trans(size_t N, uint8_t *tx_buf, uint8_t *rx_buf, size_t p_size) {
-    spi_transaction_t _trans[N];
 
-    for(int i = 0; i<N; i++) init_trans(tx_buf[i], rx_buf[i], p_size);
+spi_transaction_t scale_trans(size_t t_n, uint8_t *tx_buf, uint8_t *rx_buf, size_t p_size) {
+    
+    spi_transaction_t _trans[t_n];
+
+    for(int i = 0; i<t_n; i++) {
+        _trans[i] = init_trans(tx_buf[i], rx_buf[i], p_size);
+    }
+
+    return _trans[t_n];
 }
 
 esp_err_t master_transmit_task(void)
@@ -128,7 +134,6 @@ esp_err_t master_transmit_task(void)
     tx_data[packet_size] = scale_data(packet_size); //entire tx_data array for inf transactions
 
     //now allocating trhe buffers
-
     scale_buf_alloc(tx_buf, rx_buf, t_n, packet_size);
 
 
@@ -138,15 +143,13 @@ esp_err_t master_transmit_task(void)
     ret = check_bufs(tx_buf2, rx_buf2, "dma_alloc Pre loop failed. No Memory.");
     if (ret != ESP_OK) return ret;
 
+    //clearing rx bufs and copying tx bufs
+    for(int i = 0; i<t_n; i++) {
+        memcpy(tx_buf[i], tx_data[i], t_n);
+        memcpy(rx_buf[i], 0x00, t_n);
+    }
+
     for(;;) {
-
-        
-        memcpy(tx_buf1, tx_d1, packet_size); //copyinh 
-        memset(rx_buf1, 0x00, packet_size);
-
-        memcpy(tx_buf2, tx_d2, packet_size);
-        memset(rx_buf2, 0x00, packet_size);
-     
         
 
         spi_transaction_t _trans1 = init_trans(tx_buf1, rx_buf1, packet_size);
