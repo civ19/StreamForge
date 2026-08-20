@@ -122,6 +122,8 @@ esp_err_t master_transmit_task(void)
 
     spi_transaction_t _trans[t_n]; //array of transactions
     uint8_t tx_data[packet_size];
+    uint8_t *tx_buf[t_n]; //ptrs to the buffers were gonna allocate later
+    uint8_t *rx_buf[t_n];
 
     uint8_t tx_d1[16] = {
         0x01, 0x02, 0x03, 0x04,
@@ -137,11 +139,10 @@ esp_err_t master_transmit_task(void)
         0x0D, 0x0E, 0xeF, 0x10
     };
 
-    uint8_t *tx_buf1 = dma_alloc(packet_size); //allocations
-    uint8_t *rx_buf1 = dma_alloc(packet_size);
+    //now allocating trhe buffers
 
-    ret = check_bufs(tx_buf1, rx_buf1, "dma_alloc Pre loop failed. No Memory.");
-    if (ret != ESP_OK) return ret;
+    scale_buf_alloc(tx_buf, rx_buf, t_n, packet_size);
+
 
     uint8_t *tx_buf2 = dma_alloc(packet_size);
     uint8_t *rx_buf2 = dma_alloc(packet_size);
