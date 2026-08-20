@@ -83,7 +83,7 @@ esp_err_t check_bufs(uint8_t* tx_buf, uint8_t* rx_buf, const char* msg) {
 }
 
 uint8_t scale_data(size_t N) { //scalability function
-    uint8_t val = 0; //number inside each tx_data val
+    
 
     uint8_t tx_data[N]; //N being how many bytes for the array
 
@@ -95,7 +95,7 @@ uint8_t scale_data(size_t N) { //scalability function
     return tx_data;
 }
 
-void scale_buf_alloc(uint8_t* tx_buf, uint8_t* rx_buf, size_t n_bufs, size_t bytes) {
+esp_err_t scale_buf_alloc(uint8_t* tx_buf, uint8_t* rx_buf, size_t n_bufs, size_t bytes) {
     
     esp_err_t ret;
 
@@ -117,7 +117,7 @@ spi_transaction_t scale_trans(size_t t_n, uint8_t *tx_buf, uint8_t *rx_buf, size
         _trans[i] = init_trans(tx_buf[i], rx_buf[i], p_size);
     }
 
-    return _trans[t_n];
+    return _trans;
 }
 
 esp_err_t master_transmit_task(void)
@@ -127,11 +127,21 @@ esp_err_t master_transmit_task(void)
     esp_err_t ret;
 
     spi_transaction_t _trans[t_n]; //array of transactions
+    spi_transaction_t *trans_addr[t_n];
+
     uint8_t tx_data[packet_size];
     uint8_t *tx_buf[t_n]; //ptrs to the buffers were gonna allocate later
     uint8_t *rx_buf[t_n];
 
-    tx_data[packet_size] = scale_data(packet_size); //entire tx_data array for inf transactions
+
+    //initializing and setting tx_data for scalability
+    uint8_t val = 0; //num inside each tx data val
+    for(int i = 0; i<t_n; i++) { //0x01 = 1
+        tx_data[i] = (uint8_t)val;
+        val++;
+    }
+
+    
 
     //now allocating trhe buffers
     scale_buf_alloc(tx_buf, rx_buf, t_n, packet_size);
@@ -143,6 +153,11 @@ esp_err_t master_transmit_task(void)
     ret = check_bufs(tx_buf2, rx_buf2, "dma_alloc Pre loop failed. No Memory.");
     if (ret != ESP_OK) return ret;
 
+    //initializing transactions and configuring them
+    for(int i = 0; i<t_n; i++) {
+        _trans[i] = init_trans(tx_buf[i], rx_buf[i], packet_size);
+    }
+
     //clearing rx bufs and copying tx bufs
     for(int i = 0; i<t_n; i++) {
         memcpy(tx_buf[i], tx_data[i], t_n);
@@ -152,36 +167,35 @@ esp_err_t master_transmit_task(void)
     for(;;) {
         
 
-        spi_transaction_t _trans1 = init_trans(tx_buf1, rx_buf1, packet_size);
-        spi_transaction_t *t1_addr = &_trans1; //trans1 addr
-
-        spi_transaction_t _trans2 = init_trans(tx_buf2, rx_buf2, packet_size);
-        spi_transaction_t *t2_addr = &_trans2; //trans2 addr
+        
+        
 
 
-        CHECK_ERR(ret = spi_device_queue_trans(master_handle,&_trans1, portMAX_DELAY), return ret);
-        CHECK_ERR(ret = spi_device_queue_trans(master_handle,&_trans2, portMAX_DELAY), return ret);
-
+        for(int i = 0; i<t_n; i++) { //queuing all transactions and getting the addr of all
+            CHECK_ERR(ret = spi_device_queue_trans(master_handle,&_trans[i], portMAX_DELAY), return ret);
+            trans_addr[i] = &_trans[i];
+        }
         mutex_log('I', TAG, "All transactions successfully queued. Results incoming...");
 
-        CHECK_ERR( ret = spi_device_get_trans_result(master_handle,&t1_addr,portMAX_DELAY), return ret);
-        CHECK_ERR( ret = spi_device_get_trans_result(master_handle,&t2_addr,portMAX_DELAY), return ret);
+        for(int i = 0; i<t_n; i++) { //getting reuslt 
+            CHECK_ERR(ret = spi_device_get_trans_result(master_handle,&trans_addr[i], portMAX_DELAY), return ret);
+            printf("Transaction buffer %d: ", t_n);
+            ESP_LOG_BUFFER_HEX(TAG, tx_buf[i], packet_size);
+        }
 
-        ESP_LOG_BUFFER_HEX(TAG, tx_buf1, packet_size);
-        ESP_LOG_BUFFER_HEX(TAG, tx_buf2, packet_size);
-
-        memset(tx_buf1, 0x00, packet_size); //clearing buf to then reuse
-        memset(tx_buf2, 0x00, packet_size); //clearing buf to then reuse
-
+        //resetting buffers so we can reuse them
+        for(int i = 0; i<t_n; i++) {
+            memcpy(tx_buf[i], 0x00, packet_size);
+            memcpy(rx_buf[i], 0x00, packet_size);
+        }
         
         vTaskDelay(pdMS_TO_TICKS(100));
     }
 
-    free(tx_buf1);
-    free(tx_buf2);
-
-    free(rx_buf1);
-    free(rx_buf2);
+    for(int i = 0; i<t_n; i++) { //freeing
+        free(tx_buf[i]);
+        free(rx_buf[i]);
+    }
 
     return ESP_OK;
 }
