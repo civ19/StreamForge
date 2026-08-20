@@ -82,19 +82,6 @@ esp_err_t check_bufs(uint8_t* tx_buf, uint8_t* rx_buf, const char* msg) {
     return ESP_OK;
 }
 
-uint8_t scale_data(size_t N) { //scalability function
-    
-
-    uint8_t tx_data[N]; //N being how many bytes for the array
-
-    for(int i = 0; i<N; i++) { //0x01 = 1
-        tx_data[i] = (uint8_t)val;
-        val++;
-    }
-
-    return tx_data;
-}
-
 esp_err_t scale_buf_alloc(uint8_t* tx_buf, uint8_t* rx_buf, size_t n_bufs, size_t bytes) {
     
     esp_err_t ret;
@@ -109,16 +96,6 @@ esp_err_t scale_buf_alloc(uint8_t* tx_buf, uint8_t* rx_buf, size_t n_bufs, size_
 }
 
 
-spi_transaction_t scale_trans(size_t t_n, uint8_t *tx_buf, uint8_t *rx_buf, size_t p_size) {
-    
-    spi_transaction_t _trans[t_n];
-
-    for(int i = 0; i<t_n; i++) {
-        _trans[i] = init_trans(tx_buf[i], rx_buf[i], p_size);
-    }
-
-    return _trans;
-}
 
 esp_err_t master_transmit_task(void)
 {
@@ -136,38 +113,29 @@ esp_err_t master_transmit_task(void)
 
     //initializing and setting tx_data for scalability
     uint8_t val = 0; //num inside each tx data val
-    for(int i = 0; i<t_n; i++) { //0x01 = 1
+    for(int i = 0; i<packet_size; i++) { //0x01 = 1
         tx_data[i] = (uint8_t)val;
         val++;
     }
 
-    //now allocating trhe buffers
-    scale_buf_alloc(tx_buf, rx_buf, t_n, packet_size);
-
-    //checking if any of the buf allocs failed
-    for(int i = 0; i<t_n; i++) { //0x01 = 1
-        ret = check_bufs(tx_buf, rx_buf, "dma_alloc Pre loop failed. No Memory.");
-        if (ret != ESP_OK) return ret;
-    }
+    //allocating bufs then checking if any of the buf allocs failed
+    ret = scale_buf_alloc(tx_buf, rx_buf, t_n, packet_size);
+    if (ret != ESP_OK) return ret;
 
 
-    for(int i = 0; i<t_n; i++) { //initializing transactions and configuring them
+    //initializing and scaling transactions and configuring em
+    for(int i = 0; i<t_n; i++) { 
         _trans[i] = init_trans(tx_buf[i], rx_buf[i], packet_size);
     }
 
-    //clearing rx bufs and copying tx bufs
+    //clearing rx bufs and copying tx data into the allocated buf
     for(int i = 0; i<t_n; i++) {
-        memcpy(tx_buf[i], tx_data[i], t_n);
-        memcpy(rx_buf[i], 0x00, t_n);
+        memcpy(tx_buf[i], tx_data, packet_size);
+        memset(rx_buf[i], 0x00, packet_size);
     }
 
     for(;;) {
         
-
-        
-        
-
-
         for(int i = 0; i<t_n; i++) { //queuing all transactions and getting the addr of all
             CHECK_ERR(ret = spi_device_queue_trans(master_handle,&_trans[i], portMAX_DELAY), return ret);
             trans_addr[i] = &_trans[i];
@@ -176,14 +144,14 @@ esp_err_t master_transmit_task(void)
 
         for(int i = 0; i<t_n; i++) { //getting reuslt 
             CHECK_ERR(ret = spi_device_get_trans_result(master_handle,&trans_addr[i], portMAX_DELAY), return ret);
-            printf("Transaction buffer %d: ", t_n);
+            printf("Transaction buffer %d: ", i);
             ESP_LOG_BUFFER_HEX(TAG, tx_buf[i], packet_size);
         }
 
-        //resetting buffers so we can reuse them
+        //resetting bufs to 0 so we can reuse them for all trans 
         for(int i = 0; i<t_n; i++) {
-            memcpy(tx_buf[i], 0x00, packet_size);
-            memcpy(rx_buf[i], 0x00, packet_size);
+            memset(tx_buf[i], 0x00, packet_size);
+            memset(rx_buf[i], 0x00, packet_size);
         }
         
         vTaskDelay(pdMS_TO_TICKS(100));
