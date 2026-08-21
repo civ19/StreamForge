@@ -96,16 +96,7 @@ esp_err_t slave_transmit_task(void) {
 
     spi_slave_transaction_t _trans; //arr of slave transactions
     spi_slave_transaction_t *trans_addr = &_trans;
-/*
-    ret  = scale_buf_alloc(empty_buf.tx_buf, empty_buf.rx_buf, t_n, packet_size); //allocate and check memory for a 
-    if (ret != ESP_OK) return ret;
-*/
-    //alloc mem for bufs, receive rx from master, then make trans
 
-    
-    
-
-    //no memcpy since we get the data in rx buf already and we arent sending tx for now(yet)
 
     mutex_log('I', TAG, "SPI Slave Task listening for queue tokens...");
 
