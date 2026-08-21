@@ -64,7 +64,7 @@ spi_transaction_t init_trans(uint8_t *tx_buf, uint8_t *rx_buf, size_t p_size) { 
     spi_transaction_t _trans = {};
     _trans.tx_buffer = tx_buf;
     _trans.rx_buffer = rx_buf;
-    _trans.length = p_size * 8;
+    _trans.length = p_size * 8; //16 bytes, 8 bits per byte
 
     return _trans; //also this is just a helper function to generate transactions. will be good for scale/when you want alot of transactions asyncrhonously
 
@@ -120,6 +120,8 @@ esp_err_t master_transmit_task(void)
         val++;
     }
 
+    
+
     //allocating bufs then checking if any of the buf allocs failed
     ret = scale_buf_alloc(tx_buf, rx_buf, t_n, packet_size);
     if (ret != ESP_OK) return ret;
@@ -130,13 +132,15 @@ esp_err_t master_transmit_task(void)
         _trans[i] = init_trans(tx_buf[i], rx_buf[i], packet_size);
     }
 
-    //clearing rx bufs and copying tx data into the allocated buf
-    for(int i = 0; i<t_n; i++) {
-        memcpy(tx_buf[i], tx_data, packet_size);
-        memset(rx_buf[i], 0x00, packet_size);
-    }
+    
 
     for(;;) {
+
+        //clearing rx bufs and copying tx data into the allocated buf
+        for(int i = 0; i<t_n; i++) {
+            memcpy(tx_buf[i], tx_data, packet_size);
+            memset(rx_buf[i], 0x00, packet_size);
+        }
         
         for(int i = 0; i<t_n; i++) { //queuing all transactions and getting the addr of all
             CHECK_ERR(ret = spi_device_queue_trans(master_handle,&_trans[i], portMAX_DELAY), return ret);
@@ -146,7 +150,7 @@ esp_err_t master_transmit_task(void)
 
         for(int i = 0; i<t_n; i++) { //getting reuslt 
             CHECK_ERR(ret = spi_device_get_trans_result(master_handle,&trans_addr[i], portMAX_DELAY), return ret);
-            printf("Transaction buffer %d: ", i);
+            printf("Transaction buffer %d: ", i+1);
             ESP_LOG_BUFFER_HEX(TAG, tx_buf[i], packet_size);
         }
 
