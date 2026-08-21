@@ -82,7 +82,7 @@ esp_err_t check_bufs(uint8_t* tx_buf, uint8_t* rx_buf, const char* msg) {
     return ESP_OK;
 }
 
-esp_err_t scale_buf_alloc(uint8_t* tx_buf, uint8_t* rx_buf, size_t n_bufs, size_t bytes) {
+esp_err_t scale_buf_alloc(uint8_t** tx_buf, uint8_t** rx_buf, size_t n_bufs, size_t bytes) {
     
     esp_err_t ret;
 
@@ -93,6 +93,8 @@ esp_err_t scale_buf_alloc(uint8_t* tx_buf, uint8_t* rx_buf, size_t n_bufs, size_
         ret = check_bufs(tx_buf[i], rx_buf[i], "dma_alloc Pre loop failed. No Memory.");
         if (ret != ESP_OK) return ret;
     }
+
+    return ESP_OK;
 }
 
 
