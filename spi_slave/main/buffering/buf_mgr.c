@@ -45,7 +45,7 @@ void buf_setup(void) {
     empty_queue = xQueueCreate(2, sizeof(Buffer *)); //size of ptrs to bufs
     full_queue = xQueueCreate(2, sizeof(Buffer *)); 
     
-    for(int i = 0; i<t_n; i++) {
+    for(int i = 0; i<2; i++) {
         bufs[i].rx_buf = dma_alloc(PKT_SIZE);
         bufs[i].tx_buf = dma_alloc(PKT_SIZE);
 
