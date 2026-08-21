@@ -6,7 +6,6 @@
                 "${workspaceFolder}/**",
                 "${workspaceFolder}/main",
                 "${workspaceFolder}/main/spi_pipeline",
-                "${workspaceFolder}/main/buffering",
                 "${workspaceFolder}/../shared/utils"
             ],
             "browse": {

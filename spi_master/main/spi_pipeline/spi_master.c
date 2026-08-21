@@ -99,7 +99,7 @@ esp_err_t scale_buf_alloc(uint8_t** tx_buf, uint8_t** rx_buf, size_t n_bufs, siz
 
 
 
-esp_err_t master_transmit_task(void)
+void master_transmit_task(void *pv)
 {
     size_t packet_size = 16; //16 for 16 bytes
     size_t t_n = 2; //number of transactions
@@ -124,15 +124,13 @@ esp_err_t master_transmit_task(void)
 
     //allocating bufs then checking if any of the buf allocs failed
     ret = scale_buf_alloc(tx_buf, rx_buf, t_n, packet_size);
-    if (ret != ESP_OK) return ret;
+    if (ret != ESP_OK) vTaskDelete(NULL);
 
 
     //initializing and scaling transactions and configuring em
     for(int i = 0; i<t_n; i++) { 
         _trans[i] = init_trans(tx_buf[i], rx_buf[i], packet_size);
     }
-
-    
 
     for(;;) {
 
@@ -143,13 +141,13 @@ esp_err_t master_transmit_task(void)
         }
         
         for(int i = 0; i<t_n; i++) { //queuing all transactions and getting the addr of all
-            CHECK_ERR(ret = spi_device_queue_trans(master_handle,&_trans[i], portMAX_DELAY), return ret);
+            CHECK_ERR(ret = spi_device_queue_trans(master_handle,&_trans[i], portMAX_DELAY), vTaskDelete(NULL));
             trans_addr[i] = &_trans[i];
         }
         mutex_log('I', TAG, "All transactions successfully queued. Results incoming...");
 
         for(int i = 0; i<t_n; i++) { //getting reuslt 
-            CHECK_ERR(ret = spi_device_get_trans_result(master_handle,&trans_addr[i], portMAX_DELAY), return ret);
+            CHECK_ERR(ret = spi_device_get_trans_result(master_handle,&trans_addr[i], portMAX_DELAY), vTaskDelete(NULL));
             printf("Transaction buffer %d: ", i+1);
             ESP_LOG_BUFFER_HEX(TAG, tx_buf[i], packet_size);
         }
@@ -160,7 +158,7 @@ esp_err_t master_transmit_task(void)
             memset(rx_buf[i], 0x00, packet_size);
         }
         
-        vTaskDelay(pdMS_TO_TICKS(100));
+        
     }
 
     for(int i = 0; i<t_n; i++) { //freeing
@@ -168,5 +166,5 @@ esp_err_t master_transmit_task(void)
         free(rx_buf[i]);
     }
 
-    return ESP_OK;
+    
 }
