@@ -21,7 +21,7 @@ void app_main(void) {
     CHECK_ERR(err = init_spi_bus(), return);
     CHECK_ERR(err = init_spi_devs(), return);
 
-    vTaskDelay(pdMS_TO_TICKS(3000));
+    
     
     BaseType_t ret = xTaskCreatePinnedToCore(master_transmit_task, "MasterTransmit", 8192, NULL, 5, NULL, 1);
     if(ret != pdPASS) return;
