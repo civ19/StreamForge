@@ -31,6 +31,8 @@ void consumer_task(void *pv) {
             memset(finished_buf->rx_buf, 0x00, PKT_SIZE);
             memset(finished_buf->tx_buf, 0x00, PKT_SIZE);
 
+            mutex_log('E', TAG, "CPU Clearing Complete! Transferring to DMA.");
+
             xQueueSend(empty_queue, &finished_buf, 0);
         }
         
