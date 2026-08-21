@@ -158,7 +158,7 @@ void master_transmit_task(void *pv)
             memset(rx_buf[i], 0x00, packet_size);
         }
         
-        
+        vTaskDelay(pdMS_TO_TICKS(500));
     }
 
     for(int i = 0; i<t_n; i++) { //freeing

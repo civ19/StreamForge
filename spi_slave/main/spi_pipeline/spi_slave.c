@@ -125,6 +125,7 @@ void slave_transmit_task(void *pv) {
             xQueueSend(full_queue, &finished_buf, 0);
             
             ESP_LOG_BUFFER_HEX(TAG, empty_buf->rx_buf, packet_size);
+
             
         }
        
