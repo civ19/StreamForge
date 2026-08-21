@@ -3,10 +3,13 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
+#include "esp_log.h"
 
-#include "utils/forge_err.h"
-#include "utils/forge_log.h"
+#include "dma_master.h"
+#include "forge_err.h"
+#include "forge_log.h"
 #include <string.h>
+#include <assert.h>
 
 
 static Buffer bufs[2];
@@ -14,7 +17,6 @@ static Buffer bufs[2];
 static const char* TAG = "BUFFERING";
 
 
-}
 
 void consumer_task(void *pv) {
     Buffer *finished_buf = NULL;
@@ -22,10 +24,14 @@ void consumer_task(void *pv) {
     for(;;) {
 
         mutex_log('E', TAG, "Ownership to CPU. Clearing bufs.");
-        if(xQueueReceive(full_queue, &buf, portMAX_DELAY)) {
-            memset(buf->data, 0x00, PKT_SIZE);
+        if(xQueueReceive(full_queue, &finished_buf, portMAX_DELAY)) {
 
-            xQueueSend(empty_queue, &buf, 0);
+            ESP_LOG_BUFFER_HEX(TAG, finished_buf->rx_buf, PKT_SIZE);
+
+            memset(finished_buf->rx_buf, 0x00, PKT_SIZE);
+            memset(finished_buf->tx_buf, 0x00, PKT_SIZE);
+
+            xQueueSend(empty_queue, &finished_buf, 0);
         }
         
     }
@@ -39,14 +45,19 @@ void buf_setup(void) {
     empty_queue = xQueueCreate(2, sizeof(Buffer *)); //size of ptrs to bufs
     full_queue = xQueueCreate(2, sizeof(Buffer *)); 
     
+    for(int i = 0; i<t_n; i++) {
+        bufs[i].rx_buf = dma_alloc(PKT_SIZE);
+        bufs[i].tx_buf = dma_alloc(PKT_SIZE);
 
-    bufs[0].pos = 0;
-    bufs[1].pos = 1;
+        assert(bufs[i].rx_buf != NULL);
+        assert(bufs[i].tx_buf != NULL);
 
-    Buffer *buf;
+        memset(bufs[i].rx_buf, 0x00, PKT_SIZE);
+        memset(bufs[i].tx_buf, 0x00, PKT_SIZE);
 
-    buf = &bufs[0];
-    
+        Buffer *pv_buf = &bufs[i];
+        xQueueSend(empty_queue, &pv_buf, 0); //ptr to buf to minimize how many mem is allocated. ptr alloc smaller than Buffer struct
+    }
 
 
 }
