@@ -13,10 +13,10 @@
 
 
 static Buffer bufs[2];
-
 static const char* TAG = "BUFFERING";
 
-
+QueueHandle_t empty_queue = NULL;
+QueueHandle_t full_queue = NULL;
 
 void consumer_task(void *pv) {
     Buffer *finished_buf = NULL;
