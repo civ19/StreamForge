@@ -7,6 +7,7 @@ extern QueueHandle_t empty_queue;
 extern QueueHandle_t full_queue;
 
 #define PKT_SIZE 16 //16 bytes
+#define t_n 2
 
 typedef struct {
     uint8_t *tx_buf; //ptr to a uint8_t data arr

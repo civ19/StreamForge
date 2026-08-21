@@ -6,7 +6,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
-#include "buf_mgr.h"
+#include "buffering/buf_mgr.h"
 
 #include "forge_err.h"
 #include "forge_log.h"
