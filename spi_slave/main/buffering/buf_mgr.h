@@ -15,3 +15,4 @@ typedef struct {
 } Buffer;
 
 void buf_setup(void);
+void consumer_task(void* pv);

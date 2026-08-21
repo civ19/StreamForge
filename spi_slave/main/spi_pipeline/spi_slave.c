@@ -122,7 +122,7 @@ void slave_transmit_task(void *pv) {
             CHECK_ERR(ret = spi_slave_get_trans_result(SPI2_HOST, &trans_addr, portMAX_DELAY), vTaskDelete(NULL));
             Buffer *finished_buf = (Buffer *)_trans.user; 
 
-            xQueueSend(full_queue, &empty_buf, 0);
+            xQueueSend(full_queue, &finished_buf, 0);
             
             ESP_LOG_BUFFER_HEX(TAG, empty_buf->rx_buf, packet_size);
             
@@ -131,5 +131,5 @@ void slave_transmit_task(void *pv) {
     }
 
 
-    return ESP_OK;
+   
 }
