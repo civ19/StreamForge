@@ -6,7 +6,7 @@
 
 esp_err_t init_spi_bus(void);
 esp_err_t init_spi_devs(void);
-esp_err_t master_transmit_task(void);
+void master_transmit_task(void* pv);
 
 //helpers
 spi_transaction_t init_trans(uint8_t *tx_buf, uint8_t *rx_buf, size_t p_size);

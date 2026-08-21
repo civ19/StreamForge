@@ -6,6 +6,7 @@
 #include "forge_log.h"
 
 #include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include "freertos/semphr.h"
 
 static const char *TAG = "MAIN_MASTER";
@@ -22,6 +23,6 @@ void app_main(void) {
 
     vTaskDelay(pdMS_TO_TICKS(3000));
     
-    CHECK_ERR(err = master_transmit_task(), return);
-
+    BaseType_t ret = xTaskCreatePinnedToCore(master_transmit_task, "MasterTransmit", 8192, NULL, 5, NULL, 1);
+    if(ret != pdPASS) return;
 }
