@@ -102,7 +102,7 @@ void slave_transmit_task(void *pv) {
 
     for(;;) {
 
-        if(xQueueReceive(empty_queue, &empty_buf, portMAX_DELAY)) {
+        if(xQueueReceive(empty_queue, &empty_buf, pdMS_TO_TICKS(1000))) {
 
             
             memset(empty_buf->tx_buf, 0x00, packet_size); //clears individual elts inside the tx data array
@@ -126,7 +126,9 @@ void slave_transmit_task(void *pv) {
             
             ESP_LOG_BUFFER_HEX(TAG, empty_buf->rx_buf, packet_size);
 
-            
+        } else {
+            mutex_log('E', TAG, "Timeout failed. No new buffer on time to DMA. Sending back queue...");
+            xQueueSend(empty_queue, &empty_buf, 0);
         }
        
     }

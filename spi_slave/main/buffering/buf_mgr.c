@@ -24,15 +24,16 @@ void consumer_task(void *pv) {
     for(;;) {
 
         mutex_log('E', TAG, "Ownership to CPU. Clearing bufs.");
-        if(xQueueReceive(full_queue, &finished_buf, portMAX_DELAY)) {
-
-            ESP_LOG_BUFFER_HEX(TAG, finished_buf->rx_buf, PKT_SIZE);
+        if(xQueueReceive(full_queue, &finished_buf, pdMS_TO_TICKS(1000))) {
 
             memset(finished_buf->rx_buf, 0x00, PKT_SIZE);
             memset(finished_buf->tx_buf, 0x00, PKT_SIZE);
 
             mutex_log('E', TAG, "CPU Clearing Complete! Transferring to DMA.");
 
+            xQueueSend(empty_queue, &finished_buf, 0);
+        } else {
+            mutex_log('E', TAG, "Timeout failed. No new buffer on time to CPU. Sending back queue...");
             xQueueSend(empty_queue, &finished_buf, 0);
         }
         
