@@ -118,7 +118,7 @@ esp_err_t slave_transmit_task(void)
 
         for(int i = 0; i<t_n; i++) { //getting slave result
             CHECK_ERR( ret = spi_slave_get_trans_result(SPI2_HOST, &trans_addr[i], portMAX_DELAY),return ret);
-            printf("Transaction buffer %d: ", i);
+            printf("Transaction buffer %d: ", i+1);
             ESP_LOG_BUFFER_HEX(TAG, tx_buf[i], packet_size);
         }
         
