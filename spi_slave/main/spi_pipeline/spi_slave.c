@@ -85,10 +85,10 @@ esp_err_t scale_buf_alloc(uint8_t** tx_buf, uint8_t** rx_buf, size_t n_bufs, siz
     return ESP_OK;
 }
 
-esp_err_t slave_transmit_task(void) {
+void slave_transmit_task(void *pv) {
 
     size_t packet_size = 16;
-    size_t t_n = 2; //expecting t_n trasnactions from master
+    //size_t t_n = 2; //expecting t_n trasnactions from master
     esp_err_t ret;
 
     Buffer *empty_buf = NULL; //1 buffer with tx and rx ptrs
@@ -98,7 +98,7 @@ esp_err_t slave_transmit_task(void) {
     spi_slave_transaction_t *trans_addr = &_trans;
 
 
-    mutex_log('I', TAG, "SPI Slave Task listening for queue tokens...");
+    mutex_log('I', TAG, "Ownership to DMA. Filling buffer...");
 
     for(;;) {
 
@@ -114,14 +114,13 @@ esp_err_t slave_transmit_task(void) {
         
             _trans.user = (void*)empty_buf; //keeping it in a safe place so we know were sending out empty buf
 
-            CHECK_ERR(ret = spi_slave_queue_trans(SPI2_HOST, &_trans, portMAX_DELAY), return ret);
+            CHECK_ERR(ret = spi_slave_queue_trans(SPI2_HOST, &_trans, portMAX_DELAY), vTaskDelete(NULL));
             
             mutex_log('I', TAG, "All transactions successfully queued. Results incoming...");
 
             //getting slave result
-            CHECK_ERR(ret = spi_slave_get_trans_result(SPI2_HOST, &trans_addr, portMAX_DELAY),return ret);
-            Buffer *finished_buf = (Buffer *)_trans.user;
-
+            CHECK_ERR(ret = spi_slave_get_trans_result(SPI2_HOST, &trans_addr, portMAX_DELAY), vTaskDelete(NULL));
+            Buffer *finished_buf = (Buffer *)_trans.user; 
 
             xQueueSend(full_queue, &empty_buf, 0);
             
