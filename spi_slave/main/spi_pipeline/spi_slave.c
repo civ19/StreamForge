@@ -3,6 +3,10 @@
 #include "driver/spi_slave.h"
 #include "driver/gpio.h"
 #include "esp_log.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/queue.h"
+#include "buf_mgr.h"
 
 #include "forge_err.h"
 #include "forge_log.h"
@@ -33,7 +37,7 @@ esp_err_t init_slave_bus(void) {
 
     spi_slave_interface_config_t slave_cfg = {};
     slave_cfg.mode = 0;
-    slave_cfg.queue_size = 1;
+    slave_cfg.queue_size = 2;
     slave_cfg.spics_io_num = CS;
 
     CHECK_ERR(ret = spi_slave_initialize(SPI2_HOST, &slave_bus_conf, &slave_cfg, SPI_DMA_CH_AUTO), return ret);
@@ -81,60 +85,61 @@ esp_err_t scale_buf_alloc(uint8_t** tx_buf, uint8_t** rx_buf, size_t n_bufs, siz
     return ESP_OK;
 }
 
-esp_err_t slave_transmit_task(void)
-{
-    const size_t packet_size = 16;
+esp_err_t slave_transmit_task(void) {
+
+    size_t packet_size = 16;
     size_t t_n = 2; //expecting t_n trasnactions from master
     esp_err_t ret;
 
-    uint8_t *tx_buf[t_n];
-    uint8_t *rx_buf[t_n];
+    Buffer *empty_buf = NULL; //1 buffer with tx and rx ptrs
 
-    spi_slave_transaction_t _trans[t_n]; //arr of slave transactions
-    spi_slave_transaction_t *trans_addr[t_n];
 
-    //allocate memory and check memory for bufs only
-    ret  = scale_buf_alloc(tx_buf, rx_buf, t_n, packet_size);
+    spi_slave_transaction_t _trans; //arr of slave transactions
+    spi_slave_transaction_t *trans_addr = &_trans;
+/*
+    ret  = scale_buf_alloc(empty_buf.tx_buf, empty_buf.rx_buf, t_n, packet_size); //allocate and check memory for a 
     if (ret != ESP_OK) return ret;
-
+*/
     //alloc mem for bufs, receive rx from master, then make trans
 
-    for(int i = 0; i<t_n; i++) { //getting addr and _tranbs generation/conf
-        _trans[i] = init_trans(tx_buf[i], rx_buf[i], packet_size);
-        trans_addr[i] = &_trans[i];
-    }
+    
+    
 
     //no memcpy since we get the data in rx buf already and we arent sending tx for now(yet)
 
+    mutex_log('I', TAG, "SPI Slave Task listening for queue tokens...");
+
     for(;;) {
 
-        for (int i = 0; i < t_n; i++) memset(tx_buf[i], 0x00, packet_size);
+        if(xQueueReceive(empty_queue, &empty_buf, portMAX_DELAY)) {
 
-       
-        for(int i = 0; i<t_n; i++) { //queuing all transactions and getting the addr of all
-            CHECK_ERR(ret = spi_slave_queue_trans(SPI2_HOST, &_trans[i], portMAX_DELAY), return ret);
-        }
-        mutex_log('I', TAG, "All transactions successfully queued. Results incoming...");
+            
+            memset(empty_buf->tx_buf, 0x00, packet_size); //clears individual elts inside the tx data array
+            memset(empty_buf->rx_buf, 0x00, packet_size); 
+            
 
-        for(int i = 0; i<t_n; i++) { //getting slave result
-            CHECK_ERR( ret = spi_slave_get_trans_result(SPI2_HOST, &trans_addr[i], portMAX_DELAY),return ret);
-            printf("Transaction buffer %d: ", i+1);
-            ESP_LOG_BUFFER_HEX(TAG, tx_buf[i], packet_size);
-        }
+            //getting addr and _tranbs generation/conf
+            _trans = init_trans(empty_buf->tx_buf, empty_buf->rx_buf, packet_size);
         
-        for(int i = 0; i<t_n; i++) {
-            memset(tx_buf[i], 0x00, packet_size);
-            memset(rx_buf[i], 0x00, packet_size);
+            _trans.user = (void*)empty_buf; //keeping it in a safe place so we know were sending out empty buf
+
+            CHECK_ERR(ret = spi_slave_queue_trans(SPI2_HOST, &_trans, portMAX_DELAY), return ret);
+            
+            mutex_log('I', TAG, "All transactions successfully queued. Results incoming...");
+
+            //getting slave result
+            CHECK_ERR(ret = spi_slave_get_trans_result(SPI2_HOST, &trans_addr, portMAX_DELAY),return ret);
+            Buffer *finished_buf = (Buffer *)_trans.user;
+
+
+            xQueueSend(full_queue, &empty_buf, 0);
+            
+            ESP_LOG_BUFFER_HEX(TAG, empty_buf->rx_buf, packet_size);
+            
         }
-
-
-        vTaskDelay(pdMS_TO_TICKS(100));
+       
     }
 
-    for(int i = 0; i<t_n; i++) { //freeing
-        free(tx_buf[i]);
-        free(rx_buf[i]);
-    }
 
     return ESP_OK;
 }
