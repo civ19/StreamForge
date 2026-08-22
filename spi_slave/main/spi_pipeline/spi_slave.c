@@ -93,7 +93,6 @@ void slave_transmit_task(void *pv) {
 
     Buffer *empty_buf = NULL; //1 buffer with tx and rx ptrs
 
-
     spi_slave_transaction_t _trans; //arr of slave transactions
     spi_slave_transaction_t *trans_addr = &_trans;
 
@@ -104,7 +103,6 @@ void slave_transmit_task(void *pv) {
 
         if(xQueueReceive(empty_queue, &empty_buf, pdMS_TO_TICKS(1000))) {
 
-            
             memset(empty_buf->tx_buf, 0x00, packet_size); //clears individual elts inside the tx data array
             memset(empty_buf->rx_buf, 0x00, packet_size); 
             
@@ -119,17 +117,25 @@ void slave_transmit_task(void *pv) {
             mutex_log('I', TAG, "All transactions successfully queued. Results incoming...");
 
             //getting slave result
-            CHECK_ERR(ret = spi_slave_get_trans_result(SPI2_HOST, &trans_addr, portMAX_DELAY), vTaskDelete(NULL));
+            ret = spi_slave_get_trans_result(SPI2_HOST, &trans_addr, pdMS_TO_TICKS(1000));
+            if(ret == ESP_ERR_TIMEOUT) {
+                mutex_log('W', TAG, "Producer Transaction timeout. Requeuing...");
+                xQueueSend(empty_queue, &empty_buf, 0);
+            }
+
+            else if(ret != ESP_OK) {
+                mutex_log('E', TAG, "Fatal SPI Hardware Transaction Error: 0x%X (%s)", ret, esp_err_to_name(ret));
+                vTaskDelete(NULL);
+            }
             Buffer *finished_buf = (Buffer *)_trans.user; 
 
             xQueueSend(full_queue, &finished_buf, 0);
             
             ESP_LOG_BUFFER_HEX(TAG, empty_buf->rx_buf, packet_size);
 
-        } else {
-            mutex_log('E', TAG, "Timeout failed. No new buffer on time to DMA. Sending back queue...");
-            xQueueSend(empty_queue, &empty_buf, 0);
-        }
+        } else  mutex_log('W', TAG, "SPI Transaction Timeout! Re-queuing buffer...");
+          
+        
        
     }
 
