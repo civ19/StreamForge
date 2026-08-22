@@ -121,6 +121,7 @@ void slave_transmit_task(void *pv) {
             if(ret == ESP_ERR_TIMEOUT) {
                 mutex_log('W', TAG, "Producer Transaction timeout. Requeuing...");
                 xQueueSend(empty_queue, &empty_buf, 0);
+                continue;
             }
 
             else if(ret != ESP_OK) {
