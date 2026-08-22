@@ -99,8 +99,8 @@ esp_err_t scale_buf_alloc(uint8_t** tx_buf, uint8_t** rx_buf, size_t n_bufs, siz
 
 
 
-void master_transmit_task(void *pv)
-{
+void master_transmit_task(void *pv) { 
+
     size_t packet_size = 16; //16 for 16 bytes
     size_t t_n = 2; //number of transactions
     esp_err_t ret;
@@ -111,16 +111,10 @@ void master_transmit_task(void *pv)
     uint8_t tx_data[packet_size];
     uint8_t *tx_buf[t_n]; //ptrs to the buffers were gonna allocate later
     uint8_t *rx_buf[t_n];
+    static uint8_t val = 0;
 
+    tx_data[0] = MAGIC_BYTE;
 
-    //initializing and setting tx_data for scalability
-    uint8_t val = 0; //num inside each tx data val
-    for(int i = 0; i<packet_size; i++) { //0x01 = 1
-        tx_data[i] = (uint8_t)val;
-        val++;
-    }
-
-    
 
     //allocating bufs then checking if any of the buf allocs failed
     ret = scale_buf_alloc(tx_buf, rx_buf, t_n, packet_size);
@@ -133,6 +127,12 @@ void master_transmit_task(void *pv)
     }
 
     for(;;) {
+
+        //generating tx data arr values
+        int i = 1;
+        tx_data[i] = (uint8_t)val;
+        val++;
+        
 
         //clearing rx bufs and copying tx data into the allocated buf
         for(int i = 0; i<t_n; i++) {
