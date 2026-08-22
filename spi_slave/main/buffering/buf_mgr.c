@@ -20,22 +20,49 @@ QueueHandle_t full_queue = NULL;
 
 void consumer_task(void *pv) {
     Buffer *finished_buf = NULL;
+    
+    uint8_t exp_seq = 0;
+    uint8_t received_seq;
+
+    bool synced = false;
 
     for(;;) {
 
-        mutex_log('E', TAG, "Ownership to CPU. Clearing bufs.");
+        mutex_log('I', TAG, "Ownership to CPU. Clearing bufs.");
         if(xQueueReceive(full_queue, &finished_buf, pdMS_TO_TICKS(1000))) {
 
+            received_seq = finished_buf->rx_buf[1];
+
+            if(!synced) {
+                exp_seq = received_seq;
+                synced = true;
+                mutex_log('I', TAG, "First packet caught! Synced sequence marker.");
+            }
+
+            if(received_seq != exp_seq) {
+                mutex_log('W', TAG, "Malformed data in DMA! Expected Seq %d but got %d. Attempting resync...", exp_seq, received_seq);
+                exp_seq = received_seq;
+            }
+            
+            exp_seq++;
+
+            if(finished_buf->rx_buf[0] != MAGIC_BYTE) {
+                mutex_log('W', TAG, "Malformed packet detected! Dropping frame.");
+                memset(finished_buf->rx_buf, 0x00, PKT_SIZE);
+                memset(finished_buf->tx_buf, 0x00, PKT_SIZE);
+
+                xQueueSend(empty_queue, &finished_buf, 0);
+                continue;
+            }
             memset(finished_buf->rx_buf, 0x00, PKT_SIZE);
             memset(finished_buf->tx_buf, 0x00, PKT_SIZE);
 
             mutex_log('E', TAG, "CPU Clearing Complete! Transferring to DMA.");
 
             xQueueSend(empty_queue, &finished_buf, 0);
-        } else {
-            mutex_log('E', TAG, "Timeout failed. No new buffer on time to CPU. Sending back queue...");
-            xQueueSend(empty_queue, &finished_buf, 0);
-        }
+        } else mutex_log('E', TAG, "Timeout failed. No new buffer on time to CPU. Continuing pipeline...");
+            
+        
         
     }
 }
