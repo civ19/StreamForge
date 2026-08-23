@@ -16,3 +16,4 @@ typedef struct {
 
 void buf_setup(void);
 void consumer_task(void* pv);
+void print_stress_results(void);

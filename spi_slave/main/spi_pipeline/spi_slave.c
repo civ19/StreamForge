@@ -10,7 +10,7 @@
 
 #include "forge_err.h"
 #include "forge_log.h"
-#include "dma_master.h"
+#include "dma_mgr.h"
 
 //esp32 base
 #define MOSI GPIO_NUM_23
@@ -37,7 +37,7 @@ esp_err_t init_slave_bus(void) {
 
     spi_slave_interface_config_t slave_cfg = {};
     slave_cfg.mode = 0;
-    slave_cfg.queue_size = 2;
+    slave_cfg.queue_size = 1;
     slave_cfg.spics_io_num = CS;
 
     CHECK_ERR(ret = spi_slave_initialize(SPI2_HOST, &slave_bus_conf, &slave_cfg, SPI_DMA_CH_AUTO), return ret);
@@ -86,7 +86,7 @@ esp_err_t scale_buf_alloc(uint8_t** tx_buf, uint8_t** rx_buf, size_t n_bufs, siz
 }
 
 void slave_transmit_task(void *pv) {
-
+     printf("SLAVE TASK STARTED\n");
     size_t packet_size = 16;
     //size_t t_n = 2; //expecting t_n trasnactions from master
     esp_err_t ret;
@@ -101,12 +101,9 @@ void slave_transmit_task(void *pv) {
 
     for(;;) {
 
-        if(xQueueReceive(empty_queue, &empty_buf, pdMS_TO_TICKS(1000))) {
+        if(xQueueReceive(empty_queue, &empty_buf, portMAX_DELAY)) {
 
-            memset(empty_buf->tx_buf, 0x00, packet_size); //clears individual elts inside the tx data array
-            memset(empty_buf->rx_buf, 0x00, packet_size); 
-            
-
+        
             //getting addr and _tranbs generation/conf
             _trans = init_trans(empty_buf->tx_buf, empty_buf->rx_buf, packet_size);
         
