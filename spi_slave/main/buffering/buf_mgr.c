@@ -5,8 +5,9 @@
 #include "freertos/queue.h"
 #include "esp_log.h"
 #include "esp_timer.h"
+#include "esp_heap_caps.h"
 
-#include "dma_master.h"
+#include "dma_mgr.h"
 #include "forge_err.h"
 #include "forge_log.h"
 #include <string.h>
@@ -22,6 +23,9 @@ static int64_t pkt_valid = 0;
 static int64_t seq_err = 0;
 static int64_t pkt_malf = 0;
 static int64_t task_timeout = 0;
+
+size_t start_heap = 0;
+size_t runtime_baseline_heap = 0;
 
 static uint8_t exp_seq = 1;
 
@@ -96,16 +100,26 @@ void consumer_task(void *pv) {
 }
     
 void print_stress_results(void) {
+    size_t end_heap = heap_caps_get_free_size(MALLOC_CAP_DMA); //size in kb
+
+
     printf("Recieved packets: %" PRId64 "\n", pkt_rec);
     printf("Valid packets: %" PRId64 "\n", pkt_valid);
     printf("Sequence break packets: %" PRId64 "\n", seq_err);
     printf("Malformed packets: %" PRId64 "\n", pkt_malf);
-    printf("Task timeouts: %" PRId64 "\n", task_timeout);
+    printf("Task timeouts: %" PRId64 "\n\n", task_timeout);
+
+    printf("--- StreamForge Memory Analytics ---\n");
+    printf("Fixed Infrastructure Cost:  %zu bytes\n", (start_heap - runtime_baseline_heap));
+    printf("Sustained Processing Leak:  %zd bytes\n", (ssize_t)(runtime_baseline_heap - end_heap));
+    printf("------------------------------------\n");
 }
     
 
 
 void buf_setup(void) {
+    start_heap = heap_caps_get_free_size(MALLOC_CAP_DMA);
+
     empty_queue = xQueueCreate(2, sizeof(Buffer *)); //size of ptrs to bufs
     full_queue = xQueueCreate(2, sizeof(Buffer *)); 
     

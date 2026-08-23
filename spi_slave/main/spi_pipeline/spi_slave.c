@@ -10,7 +10,7 @@
 
 #include "forge_err.h"
 #include "forge_log.h"
-#include "dma_master.h"
+#include "dma_mgr.h"
 
 //esp32 base
 #define MOSI GPIO_NUM_23
