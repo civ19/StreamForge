@@ -86,7 +86,7 @@ esp_err_t scale_buf_alloc(uint8_t** tx_buf, uint8_t** rx_buf, size_t n_bufs, siz
 }
 
 void slave_transmit_task(void *pv) {
-
+     printf("SLAVE TASK STARTED\n");
     size_t packet_size = 16;
     //size_t t_n = 2; //expecting t_n trasnactions from master
     esp_err_t ret;
@@ -101,12 +101,9 @@ void slave_transmit_task(void *pv) {
 
     for(;;) {
 
-        if(xQueueReceive(empty_queue, &empty_buf, pdMS_TO_TICKS(1000))) {
+        if(xQueueReceive(empty_queue, &empty_buf, portMAX_DELAY)) {
 
-            memset(empty_buf->tx_buf, 0x00, packet_size); //clears individual elts inside the tx data array
-            memset(empty_buf->rx_buf, 0x00, packet_size); 
-            
-
+        
             //getting addr and _tranbs generation/conf
             _trans = init_trans(empty_buf->tx_buf, empty_buf->rx_buf, packet_size);
         

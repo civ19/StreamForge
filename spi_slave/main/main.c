@@ -20,11 +20,11 @@ void app_main(void) {
     CHECK_ERR(err = init_slave_bus(), return);
     
     buf_setup();
-    BaseType_t ret = xTaskCreatePinnedToCore(slave_transmit_task, "SlaveTransmit", 8192, NULL, 5, NULL, 1);
-    if(ret != pdPASS) return;
+    xTaskCreatePinnedToCore(slave_transmit_task, "SlaveTransmit", 8192, NULL, 5, NULL, 1);
+    
 
-    ret = xTaskCreatePinnedToCore(consumer_task, "ConsumerTask", 8192, NULL, 4, NULL, 0);
-    if(ret != pdPASS) return;
+    xTaskCreatePinnedToCore(consumer_task, "ConsumerTask", 8192, NULL, 4, NULL, 0);
+    
 
 
 }
