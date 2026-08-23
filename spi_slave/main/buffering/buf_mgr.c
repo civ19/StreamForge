@@ -23,6 +23,8 @@ static int64_t seq_err = 0;
 static int64_t pkt_malf = 0;
 static int64_t task_timeout = 0;
 
+static uint8_t exp_seq = 1;
+
 static const int64_t test_dur = 30000000;
 
 QueueHandle_t empty_queue = NULL;
@@ -31,7 +33,6 @@ QueueHandle_t full_queue = NULL;
 void consumer_task(void *pv) {
     Buffer *finished_buf = NULL;
     
-    uint8_t exp_seq = 1;
     uint8_t received_seq;
 
     bool synced = false;
@@ -39,23 +40,26 @@ void consumer_task(void *pv) {
 
 
     while(test_dur - esp_timer_get_time() > 0) {
-        pkt_rec++;
+
+        valid = true;
+        
 
         mutex_log('I', TAG, "Ownership to CPU. Clearing bufs.");
         if(xQueueReceive(full_queue, &finished_buf, pdMS_TO_TICKS(1000))) {
+            pkt_rec++;
 
             received_seq = finished_buf->rx_buf[1];
 
             if(!synced) {
                 exp_seq = received_seq;
                 synced = true;
-                valid = false;
                 mutex_log('I', TAG, "First packet caught! Synced sequence marker.");
             }
 
             if(received_seq != exp_seq) {
                 mutex_log('W', TAG, "Malformed data in DMA! Expected Seq %d but got %d. Attempting resync...", exp_seq, received_seq);
                 exp_seq = received_seq;
+                valid = false;
                 seq_err++;
             }
             

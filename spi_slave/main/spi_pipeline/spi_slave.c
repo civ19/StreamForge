@@ -37,7 +37,7 @@ esp_err_t init_slave_bus(void) {
 
     spi_slave_interface_config_t slave_cfg = {};
     slave_cfg.mode = 0;
-    slave_cfg.queue_size = 2;
+    slave_cfg.queue_size = 1;
     slave_cfg.spics_io_num = CS;
 
     CHECK_ERR(ret = spi_slave_initialize(SPI2_HOST, &slave_bus_conf, &slave_cfg, SPI_DMA_CH_AUTO), return ret);
