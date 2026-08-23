@@ -8,7 +8,7 @@
 
 #include "forge_err.h"
 #include "forge_log.h"
-#include "dma_master.h"
+#include "dma_mgr.h"
 
 //esp32s3
 // ESP32-S3 WROOM N8R8 — SPI master
@@ -46,7 +46,7 @@ esp_err_t init_spi_devs(void) {
         .clock_speed_hz = 1 * 1000 * 1000, //1mhz
         .mode = 0,
         .spics_io_num = CS, //cs gpio
-        .queue_size = 2, 
+        .queue_size = 1, 
     };
 
     esp_err_t ret;
@@ -102,7 +102,7 @@ esp_err_t scale_buf_alloc(uint8_t** tx_buf, uint8_t** rx_buf, size_t n_bufs, siz
 void master_transmit_task(void *pv) { 
 
     size_t packet_size = 16; //16 for 16 bytes
-    size_t t_n = 2; //number of transactions
+    size_t t_n = 1; //number of transactions
     esp_err_t ret;
 
     spi_transaction_t _trans[t_n]; //arr of transactions
@@ -126,12 +126,15 @@ void master_transmit_task(void *pv) {
         _trans[i] = init_trans(tx_buf[i], rx_buf[i], packet_size);
     }
 
+    static int i = 1;
+
     for(;;) {
 
         //generating tx data arr values
-        int i = 1;
-        tx_data[i] = (uint8_t)val;
-        val++;
+        for(int n = 1; n<packet_size; n++) tx_data[n] = (uint8_t)val;
+        
+        i++;
+        val++; //seq 
         
 
         //clearing rx bufs and copying tx data into the allocated buf

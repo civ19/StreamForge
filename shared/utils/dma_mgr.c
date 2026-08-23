@@ -1,4 +1,4 @@
-#include "dma_master.h"
+#include "dma_mgr.h"
 #include "forge_err.h"
 #include "forge_log.h"
 
