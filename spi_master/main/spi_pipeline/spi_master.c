@@ -46,7 +46,7 @@ esp_err_t init_spi_devs(void) {
         .clock_speed_hz = 1 * 1000 * 1000, //1mhz
         .mode = 0,
         .spics_io_num = CS, //cs gpio
-        .queue_size = 1, 
+        .queue_size = 2, 
     };
 
     esp_err_t ret;

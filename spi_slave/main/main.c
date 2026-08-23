@@ -21,12 +21,20 @@ void app_main(void) {
     CHECK_ERR(err = init_slave_bus(), return);
     
     buf_setup();
+<<<<<<< HEAD
+    BaseType_t ret = xTaskCreatePinnedToCore(slave_transmit_task, "SlaveTransmit", 8192, NULL, 5, NULL, 1);
+    if(ret != pdPASS) return;
+
+    ret = xTaskCreatePinnedToCore(consumer_task, "ConsumerTask", 8192, NULL, 4, NULL, 0);
+    if(ret != pdPASS) return;
+=======
     xTaskCreatePinnedToCore(slave_transmit_task, "SlaveTransmit", 8192, NULL, 5, NULL, 1);
     
 
     xTaskCreatePinnedToCore(consumer_task, "ConsumerTask", 8192, NULL, 4, NULL, 0);
     runtime_baseline_heap = heap_caps_get_free_size(MALLOC_CAP_DMA);
     
+>>>>>>> v1.1.0
 
 
 }

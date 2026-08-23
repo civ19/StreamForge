@@ -23,6 +23,11 @@ void app_main(void) {
 
     
     
+<<<<<<< HEAD
+    BaseType_t ret = xTaskCreatePinnedToCore(master_transmit_task, "MasterTransmit", 8192, NULL, 5, NULL, 1);
+    if(ret != pdPASS) return;
+=======
     xTaskCreatePinnedToCore(master_transmit_task, "MasterTransmit", 8192, NULL, 5, NULL, 1);
     
+>>>>>>> v1.1.0
 }
