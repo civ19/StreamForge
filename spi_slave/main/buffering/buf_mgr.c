@@ -38,7 +38,7 @@ void consumer_task(void *pv) {
     Buffer *finished_buf = NULL;
     
     uint8_t received_seq;
-
+    
     bool synced = false;
     bool valid = true;
 

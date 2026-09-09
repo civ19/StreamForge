@@ -10,12 +10,11 @@
 #include "forge_log.h"
 #include "dma_mgr.h"
 
-//esp32s3
-// ESP32-S3 WROOM N8R8 — SPI master
-#define MOSI GPIO_NUM_11
-#define MISO GPIO_NUM_13
-#define SCLK GPIO_NUM_12
-#define CS   GPIO_NUM_14
+//esp32 base
+#define MOSI GPIO_NUM_23
+#define MISO GPIO_NUM_19
+#define SCLK GPIO_NUM_18
+#define CS   GPIO_NUM_5
 
 static const char *TAG = "SPI_MASTER";
 
