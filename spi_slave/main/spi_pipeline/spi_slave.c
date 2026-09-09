@@ -22,6 +22,11 @@
 
 static const char *TAG = "SPI_SLAVE";
 
+typedef struct {
+    AppBuffer buffer;
+    spi_slave_transaction_t  _trans;
+    
+} EngineBuffer;
 
 esp_err_t init_slave_bus(void) {
     spi_bus_config_t slave_bus_conf = {};

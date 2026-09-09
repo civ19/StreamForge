@@ -2,6 +2,9 @@
 
 #include "esp_err.h"
 #include "driver/spi_slave.h"
+#include "app_types.h"
+
+
 
 esp_err_t init_slave_bus(void);
 void slave_transmit_task(void* pv);
