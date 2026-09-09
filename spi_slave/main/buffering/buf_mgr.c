@@ -54,14 +54,14 @@ void consumer_task(void *pv) {
 
             received_seq = finished_buf->rx_buf[1];
 
-            if(!synced) {
+            if(synced == false) {
                 exp_seq = received_seq;
                 synced = true;
                 mutex_log('I', TAG, "First packet caught! Synced sequence marker.");
             }
 
             if(received_seq != exp_seq) {
-                mutex_log('W', TAG, "Malformed data in DMA! Expected Seq %d but got %d. Attempting resync...", exp_seq, received_seq);
+                mutex_log('W', TAG, "Sequences Malform[DMA]! Expected Seq %d but got %d. Attempting resync...", exp_seq, received_seq);
                 exp_seq = received_seq;
                 valid = false;
                 seq_err++;

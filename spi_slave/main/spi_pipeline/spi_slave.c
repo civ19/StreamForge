@@ -31,6 +31,7 @@ esp_err_t init_slave_bus(void) {
     slave_bus_conf.quadhd_io_num = -1;
     slave_bus_conf.quadwp_io_num = -1;
     slave_bus_conf.sclk_io_num = SCLK;
+    
 
     mutex_log('I', TAG, "SPI Slave bus initialized.");
     esp_err_t ret;
@@ -116,17 +117,26 @@ void slave_transmit_task(void *pv) {
             mutex_log('I', TAG, "All transactions successfully queued. Results incoming...");
 
             //getting slave result
-            ret = spi_slave_get_trans_result(SPI2_HOST, &trans_addr, pdMS_TO_TICKS(1000));
-            if(ret == ESP_ERR_TIMEOUT) {
-                mutex_log('W', TAG, "Producer Transaction timeout. Requeuing...");
-                xQueueSend(empty_queue, &empty_buf, 0);
+            mutex_log('I', TAG, "Waiting for SPI transaction result...");
+
+            ret = spi_slave_get_trans_result(
+                SPI2_HOST,
+                &trans_addr,
+                pdMS_TO_TICKS(1000)
+            );
+
+            if (ret == ESP_ERR_TIMEOUT) {
+                mutex_log('W', TAG, "NO MASTER TRANSACTION — timeout");
                 continue;
             }
-
-            else if(ret != ESP_OK) {
+            else {
+                mutex_log('I', TAG, "SPI TRANSACTION COMPLETED");
+            }
+/*
+            else {
                 mutex_log('E', TAG, "Fatal SPI Hardware Transaction Error: 0x%X (%s)", ret, esp_err_to_name(ret));
                 vTaskDelete(NULL);
-            }
+            }*/
             Buffer *finished_buf = (Buffer *)_trans.user; 
 
             xQueueSend(full_queue, &finished_buf, 0);
