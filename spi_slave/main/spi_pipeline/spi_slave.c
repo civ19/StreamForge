@@ -61,12 +61,13 @@ esp_err_t init_slave_bus(void) {
 
 
 
-void init_trans(uint8_t *tx_buf, uint8_t *rx_buf, size_t p_size) { 
+void init_trans(spi_slave_transaction_t *_trans, uint8_t *tx_buf, uint8_t *rx_buf, size_t p_size) { 
 
-    spi_slave_transaction_t _trans = {};
-    _trans.tx_buffer = tx_buf;
-    _trans.rx_buffer = rx_buf;
-    _trans.length = p_size * 8;
+    memset(_trans, 0, sizeof(spi_slave_transaction_t)); //clearing the mem loc
+    //setting the buffers
+    _trans->tx_buffer = tx_buf;
+    _trans->rx_buffer = rx_buf;
+    _trans->length = p_size * 8;
 
 }
 
@@ -100,7 +101,7 @@ esp_err_t scale_buf_alloc(uint8_t **tx_buf, uint8_t** rx_buf, size_t n_bufs, siz
 
 static EngineBuffer bufs[2];
 
-esp_err_t slave_engine_buf_init(QueueHandle_t to_empty_queue) {
+esp_err_t init_slave_engine_bufs(QueueHandle_t to_empty_queue) {
     for(int i = 0; i<2; i++) {
         //allocate dma buffers
         bufs[i].app_buf.rx_buf = dma_alloc(PKT_SIZE);
@@ -110,7 +111,6 @@ esp_err_t slave_engine_buf_init(QueueHandle_t to_empty_queue) {
         //assertions
         assert(bufs[i].app_buf.rx_buf != NULL);
         assert(bufs[i].app_buf.tx_buf != NULL);
-        assert(bufs[i].app_buf.id != NULL);
 
         //setting to 0
         memset(bufs[i].app_buf.rx_buf, 0x00, PKT_SIZE); //setting a pkt_size buffer to 0
@@ -118,16 +118,16 @@ esp_err_t slave_engine_buf_init(QueueHandle_t to_empty_queue) {
         memset(&bufs[i]._etrans, 0, sizeof(spi_slave_transaction_t));
 
         //spi hardware config
-        init_trans(bufs[i].app_buf.tx_buf, bufs[i].app_buf.rx_buf, PKT_SIZE);
+        init_trans(&bufs[i]._etrans, bufs[i].app_buf.tx_buf, bufs[i].app_buf.rx_buf, PKT_SIZE);
 
         bufs[i]._etrans.user = (void*)&bufs[i].app_buf; //safe bucket
 
         //pushing app buf 
         AppBuffer *pv_app = &bufs[i].app_buf;
         xQueueSend(to_empty_queue, &pv_app, 0);
-
-
     }
+
+    return ESP_OK;
 }
 
 

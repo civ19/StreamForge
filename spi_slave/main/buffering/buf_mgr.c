@@ -14,6 +14,7 @@
 #include <string.h>
 #include <assert.h>
 #include <inttypes.h>
+#include "spi_slave.h"
 
 
 
@@ -124,19 +125,7 @@ void buf_setup(void) {
     empty_queue = xQueueCreate(2, sizeof(AppBuffer *)); //size of ptrs to bufs
     full_queue = xQueueCreate(2, sizeof(AppBuffer *)); 
     
-    for(int i = 0; i<2; i++) {
-        bufs[i].rx_buf = dma_alloc(PKT_SIZE);
-        bufs[i].tx_buf = dma_alloc(PKT_SIZE);
-
-        assert(bufs[i].rx_buf != NULL);
-        assert(bufs[i].tx_buf != NULL);
-
-        memset(bufs[i].rx_buf, 0x00, PKT_SIZE);
-        memset(bufs[i].tx_buf, 0x00, PKT_SIZE);
-
-        AppBuffer *pv_buf = &bufs[i];
-        xQueueSend(empty_queue, &pv_buf, 0); //ptr to buf to minimize how many mem is allocated. ptr alloc smaller than Buffer struct
-    }
+    init_slave_engine_bufs(empty_queue);
 
 
 }
