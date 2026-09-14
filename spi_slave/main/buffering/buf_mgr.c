@@ -8,6 +8,7 @@
 #include "esp_heap_caps.h"
 
 #include "dma_mgr.h"
+#include "app_types.h"
 #include "forge_err.h"
 #include "forge_log.h"
 #include <string.h>
@@ -15,7 +16,7 @@
 #include <inttypes.h>
 
 
-static Buffer bufs[2];
+
 static const char* TAG = "BUFFERING";
 
 static int64_t pkt_rec = 0;
@@ -35,7 +36,7 @@ QueueHandle_t empty_queue = NULL;
 QueueHandle_t full_queue = NULL;
 
 void consumer_task(void *pv) {
-    Buffer *finished_buf = NULL;
+    AppBuffer *finished_buf = NULL;
     
     uint8_t received_seq;
     
@@ -120,8 +121,8 @@ void print_stress_results(void) {
 void buf_setup(void) {
     start_heap = heap_caps_get_free_size(MALLOC_CAP_DMA);
 
-    empty_queue = xQueueCreate(2, sizeof(Buffer *)); //size of ptrs to bufs
-    full_queue = xQueueCreate(2, sizeof(Buffer *)); 
+    empty_queue = xQueueCreate(2, sizeof(AppBuffer *)); //size of ptrs to bufs
+    full_queue = xQueueCreate(2, sizeof(AppBuffer *)); 
     
     for(int i = 0; i<2; i++) {
         bufs[i].rx_buf = dma_alloc(PKT_SIZE);
@@ -133,7 +134,7 @@ void buf_setup(void) {
         memset(bufs[i].rx_buf, 0x00, PKT_SIZE);
         memset(bufs[i].tx_buf, 0x00, PKT_SIZE);
 
-        Buffer *pv_buf = &bufs[i];
+        AppBuffer *pv_buf = &bufs[i];
         xQueueSend(empty_queue, &pv_buf, 0); //ptr to buf to minimize how many mem is allocated. ptr alloc smaller than Buffer struct
     }
 

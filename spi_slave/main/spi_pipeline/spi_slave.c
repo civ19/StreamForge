@@ -12,6 +12,8 @@
 #include "forge_log.h"
 #include "dma_mgr.h"
 
+#include <stddef.h>
+
 //esp32s3
 // ESP32-S3 wroom — SPI master
 #define MOSI GPIO_NUM_11
@@ -23,8 +25,8 @@
 static const char *TAG = "SPI_SLAVE";
 
 typedef struct {
-    AppBuffer buffer;
-    spi_slave_transaction_t  _trans;
+    AppBuffer app_buf;
+    spi_slave_transaction_t _etrans;
     
 } EngineBuffer;
 
@@ -52,18 +54,20 @@ esp_err_t init_slave_bus(void) {
 
     mutex_log('I', TAG, "SPI Slave dev initialized.");
     return ESP_OK;
+    
 
 
 }
 
-spi_slave_transaction_t init_trans(uint8_t *tx_buf, uint8_t *rx_buf, size_t p_size) { 
+
+
+void init_trans(uint8_t *tx_buf, uint8_t *rx_buf, size_t p_size) { 
 
     spi_slave_transaction_t _trans = {};
     _trans.tx_buffer = tx_buf;
     _trans.rx_buffer = rx_buf;
     _trans.length = p_size * 8;
 
-    return _trans; 
 }
 
 esp_err_t check_bufs(uint8_t* tx_buf, uint8_t* rx_buf, const char* msg) {
@@ -76,9 +80,10 @@ esp_err_t check_bufs(uint8_t* tx_buf, uint8_t* rx_buf, const char* msg) {
     }
 
     return ESP_OK;
+    
 }
 
-esp_err_t scale_buf_alloc(uint8_t** tx_buf, uint8_t** rx_buf, size_t n_bufs, size_t bytes) {
+esp_err_t scale_buf_alloc(uint8_t **tx_buf, uint8_t** rx_buf, size_t n_bufs, size_t bytes) {
     
     esp_err_t ret;
 
@@ -93,13 +98,46 @@ esp_err_t scale_buf_alloc(uint8_t** tx_buf, uint8_t** rx_buf, size_t n_bufs, siz
     return ESP_OK;
 }
 
+static EngineBuffer bufs[2];
+
+esp_err_t slave_engine_buf_init(QueueHandle_t to_empty_queue) {
+    for(int i = 0; i<2; i++) {
+        //allocate dma buffers
+        bufs[i].app_buf.rx_buf = dma_alloc(PKT_SIZE);
+        bufs[i].app_buf.tx_buf = dma_alloc(PKT_SIZE);
+        bufs[i].app_buf.id = i;
+
+        //assertions
+        assert(bufs[i].app_buf.rx_buf != NULL);
+        assert(bufs[i].app_buf.tx_buf != NULL);
+        assert(bufs[i].app_buf.id != NULL);
+
+        //setting to 0
+        memset(bufs[i].app_buf.rx_buf, 0x00, PKT_SIZE); //setting a pkt_size buffer to 0
+        memset(bufs[i].app_buf.tx_buf, 0x00, PKT_SIZE); //setting a pkt_size buffer to 0
+        memset(&bufs[i]._etrans, 0, sizeof(spi_slave_transaction_t));
+
+        //spi hardware config
+        init_trans(bufs[i].app_buf.tx_buf, bufs[i].app_buf.rx_buf, PKT_SIZE);
+
+        bufs[i]._etrans.user = (void*)&bufs[i].app_buf; //safe bucket
+
+        //pushing app buf 
+        AppBuffer *pv_app = &bufs[i].app_buf;
+        xQueueSend(to_empty_queue, &pv_app, 0);
+
+
+    }
+}
+
+
 void slave_transmit_task(void *pv) {
      printf("SLAVE TASK STARTED\n");
     size_t packet_size = 16;
     //size_t t_n = 2; //expecting t_n trasnactions from master
     esp_err_t ret;
 
-    Buffer *empty_buf = NULL; //1 buffer with tx and rx ptrs
+    AppBuffer *empty_buf = NULL; //1 buffer with tx and rx ptrs
 
     spi_slave_transaction_t _trans; //arr of slave transactions
     spi_slave_transaction_t *trans_addr = &_trans;
