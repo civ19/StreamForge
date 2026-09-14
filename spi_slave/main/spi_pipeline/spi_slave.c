@@ -19,7 +19,7 @@
 #define MOSI GPIO_NUM_11
 #define MISO GPIO_NUM_13
 #define SCLK GPIO_NUM_12
-#define CS   GPIO_NUM_14
+#define CS   GPIO_NUM_10
 
 
 static const char *TAG = "SPI_SLAVE";
@@ -132,66 +132,43 @@ esp_err_t init_slave_engine_bufs(QueueHandle_t to_empty_queue) {
 
 
 void slave_transmit_task(void *pv) {
-     printf("SLAVE TASK STARTED\n");
-    size_t packet_size = 16;
-    //size_t t_n = 2; //expecting t_n trasnactions from master
+    printf("SLAVE TASK STARTED\n");
     esp_err_t ret;
 
-    AppBuffer *empty_buf = NULL; //1 buffer with tx and rx ptrs
+    AppBuffer *empty_buf = NULL;         
+    spi_slave_transaction_t *ret_trans = NULL; 
 
-    spi_slave_transaction_t _trans; //arr of slave transactions
-    spi_slave_transaction_t *trans_addr = &_trans;
-
-
-    mutex_log('I', TAG, "Ownership to DMA. Filling buffer...");
-
-    for(;;) {
-
-        if(xQueueReceive(empty_queue, &empty_buf, portMAX_DELAY)) {
-
-        
-            //getting addr and _tranbs generation/conf
-            _trans = init_trans(empty_buf->tx_buf, empty_buf->rx_buf, packet_size);
-        
-            _trans.user = (void*)empty_buf; //keeping it in a safe place so we know were sending out empty buf
-
-            CHECK_ERR(ret = spi_slave_queue_trans(SPI2_HOST, &_trans, portMAX_DELAY), vTaskDelete(NULL));
-            
-            mutex_log('I', TAG, "All transactions successfully queued. Results incoming...");
-
-            //getting slave result
-            mutex_log('I', TAG, "Waiting for SPI transaction result...");
-
-            ret = spi_slave_get_trans_result(
-                SPI2_HOST,
-                &trans_addr,
-                pdMS_TO_TICKS(1000)
-            );
-
-            if (ret == ESP_ERR_TIMEOUT) {
-                mutex_log('W', TAG, "NO MASTER TRANSACTION — timeout");
-                continue;
-            }
-            else {
-                mutex_log('I', TAG, "SPI TRANSACTION COMPLETED");
-            }
-/*
-            else {
-                mutex_log('E', TAG, "Fatal SPI Hardware Transaction Error: 0x%X (%s)", ret, esp_err_to_name(ret));
-                vTaskDelete(NULL);
-            }*/
-            Buffer *finished_buf = (Buffer *)_trans.user; 
-
-            xQueueSend(full_queue, &finished_buf, 0);
-            
-            ESP_LOG_BUFFER_HEX(TAG, empty_buf->rx_buf, packet_size);
-
-        } else  mutex_log('W', TAG, "SPI Transaction Timeout! Re-queuing buffer...");
-          
-        
-       
+    //prime the hardware queue pipeline with the very first buffer
+    if (xQueueReceive(empty_queue, &empty_buf, portMAX_DELAY)) {
+        EngineBuffer *engine_buf = (EngineBuffer *)((char *)empty_buf - offsetof(EngineBuffer, app_buf));
+        spi_slave_queue_trans(SPI2_HOST, &engine_buf->_etrans, portMAX_DELAY);
     }
 
+    for(;;) {
+        //keeping the pipeline fed: fetch and queue a back-up buffer immediately
+        if (xQueueReceive(empty_queue, &empty_buf, portMAX_DELAY)) {
+            EngineBuffer *engine_buf = (EngineBuffer *)((char *)empty_buf - offsetof(EngineBuffer, app_buf));
+            spi_slave_queue_trans(SPI2_HOST, &engine_buf->_etrans, portMAX_DELAY);
+        }
 
-   
+        //block until the oldest queued transaction completes
+        ret = spi_slave_get_trans_result(SPI2_HOST, &ret_trans, pdMS_TO_TICKS(1000));
+
+        if (ret == ESP_ERR_TIMEOUT) {
+            continue; 
+        } else if (ret != ESP_OK) {
+            mutex_log('E', TAG, "Fatal Hardware SPI Transaction Error!");
+            vTaskDelete(NULL);
+        }
+
+        //extract the clean application token from the finished transaction's bucket
+        AppBuffer *finished_buf = (AppBuffer *)ret_trans->user;
+
+      
+        // This prints out the rx_buf array values up to PKT_SIZE in Hex format
+        ESP_LOG_BUFFER_HEX("SPI_SLAVE_ENGINE", finished_buf->rx_buf, PKT_SIZE);
+
+        //transfer the clean public token over to the application layer / CPU
+        xQueueSend(full_queue, &finished_buf, 0);
+    }
 }
