@@ -1,4 +1,4 @@
-#include "spi_pipeline/spi_slave.h"
+#include "spi_slave_pipeline/spi_slave.h"
 #include "esp_err.h"
 #include "buffering/buf_mgr.h"
 

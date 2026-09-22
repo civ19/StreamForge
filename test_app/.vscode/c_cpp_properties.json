@@ -1,0 +1,21 @@
+{
+    "configurations": [
+        {
+            "name": "ESP-IDF",
+            "includePath": [
+                "C:/esp/v5.5.5/esp-idf/components/unity/unity/src",
+                "C:/esp/v5.5.5/esp-idf/components/esp_rom/include",
+                "C:/esp/v5.5.5/esp-idf/components/esp_timer/include",
+                "${workspaceFolder}/**"
+            ],
+            "browse": {
+                "path": [
+                    "C:/esp/v5.5.5/esp-idf/components",
+                    "${workspaceFolder}"
+                ],
+                "limitSymbolsToIncludedHeaders": false
+            }
+        }
+    ],
+    "version": 4
+}

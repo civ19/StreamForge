@@ -5,7 +5,7 @@
             "includePath": [
                 "${workspaceFolder}/**",
                 "${workspaceFolder}/main",
-                "${workspaceFolder}/main/spi_pipeline",
+                "${workspaceFolder}/main/spi_master_pipeline",
                 "${workspaceFolder}/../shared/utils"
             ],
             "browse": {
