@@ -131,30 +131,26 @@ void master_transmit_task(void *pv) {
     for(;;) {
 
         //generating tx data arr values
-        for(int n = 1; n<packet_size; n++) tx_data[n] = (uint8_t)val;
+        for(int n = 1; n<packet_size - 2; n++) tx_data[n] = (uint8_t)val;
         
         i++;
         val++; //seq 
         
 
-        uint16_t crc_val = esp_rom_crc16_le(0, tx_buf[i], 14);
+        uint16_t crc_val = esp_rom_crc16_le(0, tx_data, PKT_SIZE - 2);
 
         tx_data[PKT_SIZE - 2] = (uint8_t)(crc_val & 0xFF); //low byte
         tx_data[PKT_SIZE - 1] = (uint8_t)(crc_val >> 8 & 0xFF); //high byte
-        
+
         //clearing rx bufs and copying tx data into the allocated buf
         for(int i = 0; i<t_n; i++) {
             memcpy(tx_buf[i], tx_data, packet_size);
             memset(rx_buf[i], 0x00, packet_size);
         }
 
-        
-
-
-        
-        for(int i = 0; i<t_n; i++) { //queuing all transactions and getting the addr of all
-            CHECK_ERR(ret = spi_device_queue_trans(master_handle,&_trans[i], portMAX_DELAY), vTaskDelete(NULL));
-            trans_addr[i] = &_trans[i];
+        for(int k = 0; k<t_n; k++) { //queuing all transactions and getting the addr of all
+            CHECK_ERR(ret = spi_device_queue_trans(master_handle,&_trans[k], portMAX_DELAY), vTaskDelete(NULL));
+            trans_addr[k] = &_trans[k];
         }
         mutex_log('I', TAG, "All transactions successfully queued. Results incoming...");
 

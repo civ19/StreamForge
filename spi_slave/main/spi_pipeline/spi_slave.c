@@ -138,25 +138,21 @@ void slave_transmit_task(void *pv) {
     AppBuffer *empty_buf = NULL;         
     spi_slave_transaction_t *ret_trans = NULL; 
 
-    //prime the hardware queue pipeline with the very first buffer
-    if (xQueueReceive(empty_queue, &empty_buf, portMAX_DELAY)) {
-        EngineBuffer *engine_buf = (EngineBuffer *)((char *)empty_buf - offsetof(EngineBuffer, app_buf)); //offsetof being 0. this is basically just casting the exact addr of appbuf to an enginebuf
-        spi_slave_queue_trans(SPI2_HOST, &engine_buf->_etrans, portMAX_DELAY);
-    }
-
-    for(;;) {
-        //keeping the pipeline fed: fetch and queue a back-up buffer immediately
+    // PRIME THE PIPELINE: Load BOTH hardware slots immediately at startup
+    for (int i = 0; i < 2; i++) {
         if (xQueueReceive(empty_queue, &empty_buf, portMAX_DELAY)) {
             EngineBuffer *engine_buf = (EngineBuffer *)((char *)empty_buf - offsetof(EngineBuffer, app_buf));
             spi_slave_queue_trans(SPI2_HOST, &engine_buf->_etrans, portMAX_DELAY);
         }
+    }
 
+    for(;;) {
+     
         //block until the oldest queued transaction completes
         ret = spi_slave_get_trans_result(SPI2_HOST, &ret_trans, pdMS_TO_TICKS(1000)); //result goes in ret trans
 
-        if (ret == ESP_ERR_TIMEOUT) {
-            continue; 
-        } else if (ret != ESP_OK) {
+        if (ret == ESP_ERR_TIMEOUT) continue; 
+        else if (ret != ESP_OK) {
             mutex_log('E', TAG, "Fatal Hardware SPI Transaction Error!");
             vTaskDelete(NULL);
         }
@@ -170,5 +166,10 @@ void slave_transmit_task(void *pv) {
 
         //transfer the clean public token over to the application layer / CPU
         xQueueSend(full_queue, &finished_buf, 0);
+
+        if(xQueueReceive(empty_queue, &empty_buf, portMAX_DELAY)) {
+            EngineBuffer *engine_buf = (EngineBuffer *)((char*)empty_buf - offsetof(EngineBuffer, app_buf));
+            spi_slave_queue_trans(SPI2_HOST, &engine_buf->_etrans, portMAX_DELAY);
+        }
     }
 }
