@@ -140,7 +140,7 @@ void slave_transmit_task(void *pv) {
 
     //prime the hardware queue pipeline with the very first buffer
     if (xQueueReceive(empty_queue, &empty_buf, portMAX_DELAY)) {
-        EngineBuffer *engine_buf = (EngineBuffer *)((char *)empty_buf - offsetof(EngineBuffer, app_buf));
+        EngineBuffer *engine_buf = (EngineBuffer *)((char *)empty_buf - offsetof(EngineBuffer, app_buf)); //offsetof being 0. this is basically just casting the exact addr of appbuf to an enginebuf
         spi_slave_queue_trans(SPI2_HOST, &engine_buf->_etrans, portMAX_DELAY);
     }
 
@@ -152,7 +152,7 @@ void slave_transmit_task(void *pv) {
         }
 
         //block until the oldest queued transaction completes
-        ret = spi_slave_get_trans_result(SPI2_HOST, &ret_trans, pdMS_TO_TICKS(1000));
+        ret = spi_slave_get_trans_result(SPI2_HOST, &ret_trans, pdMS_TO_TICKS(1000)); //result goes in ret trans
 
         if (ret == ESP_ERR_TIMEOUT) {
             continue; 

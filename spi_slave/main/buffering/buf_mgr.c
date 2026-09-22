@@ -36,6 +36,7 @@ static const int64_t test_dur = 30000000;
 QueueHandle_t empty_queue = NULL;
 QueueHandle_t full_queue = NULL;
 
+
 void consumer_task(void *pv) {
     AppBuffer *finished_buf = NULL;
     
@@ -44,6 +45,18 @@ void consumer_task(void *pv) {
     bool synced = false;
     bool valid = true;
 
+    mutex_log('I', TAG, "Flushing stale buffer tokens on boot...");
+    AppBuffer *stale_tok = NULL;
+
+    //immediately draining the full queue tokens
+    while(xQueueReceive(full_queue, &stale_tok, 0)) {
+        memset(stale_tok->rx_buf, 0x00, PKT_SIZE);
+        memset(stale_tok->tx_buf, 0x00, PKT_SIZE);
+
+        xQueueSend(empty_queue, &stale_tok, 0);
+    }
+
+    mutex_log('I', TAG, "Pipeline flushed. Starting operational sync.");
 
     while(test_dur - esp_timer_get_time() > 0) {
 
@@ -63,7 +76,11 @@ void consumer_task(void *pv) {
             }
 
             if(received_seq != exp_seq) {
-                mutex_log('W', TAG, "Sequences Malform[DMA]! Expected Seq %d but got %d. Attempting resync...", exp_seq, received_seq);
+                if(xSemaphoreTake(printMutex, portMAX_DELAY)) {
+                    ESP_LOGW(TAG, "Sequences Malform[DMA]! Expected Seq %d but got %d. Attempting resync...", exp_seq, received_seq);   
+                    xSemaphoreGive(printMutex);
+                }
+                
                 exp_seq = received_seq;
                 valid = false;
                 seq_err++;

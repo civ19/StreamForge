@@ -18,9 +18,9 @@ void app_main(void) {
 
     esp_err_t err;
 
+    buf_setup();
     CHECK_ERR(err = init_slave_bus(), return);
     
-    buf_setup();
     xTaskCreatePinnedToCore(slave_transmit_task, "SlaveTransmit", 8192, NULL, 5, NULL, 1);
     
 

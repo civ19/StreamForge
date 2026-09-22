@@ -22,7 +22,7 @@ void app_main(void) {
     CHECK_ERR(err = init_spi_devs(), return);
 
     
-    
+    vTaskDelay(pdMS_TO_TICKS(1000));
     xTaskCreatePinnedToCore(master_transmit_task, "MasterTransmit", 8192, NULL, 5, NULL, 1);
     
 }
