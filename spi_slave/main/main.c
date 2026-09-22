@@ -24,7 +24,7 @@ void app_main(void) {
     xTaskCreatePinnedToCore(slave_transmit_task, "SlaveTransmit", 8192, NULL, 5, NULL, 1);
     
 
-    xTaskCreatePinnedToCore(consumer_task, "ConsumerTask", 8192, NULL, 4, NULL, 0);
+    xTaskCreatePinnedToCore(consumer_task, "ConsumerTask", 8192, NULL, 5, NULL, 0);
     runtime_baseline_heap = heap_caps_get_free_size(MALLOC_CAP_DMA);
     
 

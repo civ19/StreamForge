@@ -47,14 +47,14 @@ void consumer_task(void *pv) {
 
     mutex_log('I', TAG, "Flushing stale buffer tokens on boot...");
     AppBuffer *stale_tok = NULL;
-
+/*
     //immediately draining the full queue tokens
     while(xQueueReceive(full_queue, &stale_tok, 0)) {
         memset(stale_tok->rx_buf, 0x00, PKT_SIZE);
         memset(stale_tok->tx_buf, 0x00, PKT_SIZE);
 
         xQueueSend(empty_queue, &stale_tok, 0);
-    }
+    }*/
 
     mutex_log('I', TAG, "Pipeline flushed. Starting operational sync.");
 
