@@ -6,6 +6,7 @@
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "esp_heap_caps.h"
+#include "esp_rom_crc.h"
 
 #include "dma_mgr.h"
 #include "app_types.h"
@@ -46,7 +47,7 @@ void consumer_task(void *pv) {
     bool valid = true;
 
     mutex_log('I', TAG, "Flushing stale buffer tokens on boot...");
-    AppBuffer *stale_tok = NULL;
+   // AppBuffer *stale_tok = NULL;
 /*
     //immediately draining the full queue tokens
     while(xQueueReceive(full_queue, &stale_tok, 0)) {
@@ -97,6 +98,10 @@ void consumer_task(void *pv) {
                 xQueueSend(empty_queue, &finished_buf, 0);
                 continue;
             }
+
+            uint16_t recevied_crc = (finished_buf->rx_buf[PKT_SIZE - 1] << 8) | finished_buf->rx_buf[PKT_SIZE - 2]; //bitmask for crc
+            uint16_t curr_crc = esp_rom_crc16_le(0, finished_buf->rx_buf, DATA_SIZE);
+            
             memset(finished_buf->rx_buf, 0x00, PKT_SIZE);
             memset(finished_buf->tx_buf, 0x00, PKT_SIZE);
 

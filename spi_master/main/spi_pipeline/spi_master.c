@@ -5,6 +5,7 @@
 #include <string.h>
 #include "esp_log.h"
 #include <assert.h>
+#include "esp_rom_crc.h"
 
 #include "forge_err.h"
 #include "forge_log.h"
@@ -136,11 +137,20 @@ void master_transmit_task(void *pv) {
         val++; //seq 
         
 
+        uint16_t crc_val = esp_rom_crc16_le(0, tx_buf[i], 14);
+
+        tx_data[PKT_SIZE - 2] = (uint8_t)(crc_val & 0xFF); //low byte
+        tx_data[PKT_SIZE - 1] = (uint8_t)(crc_val >> 8 & 0xFF); //high byte
+        
         //clearing rx bufs and copying tx data into the allocated buf
         for(int i = 0; i<t_n; i++) {
             memcpy(tx_buf[i], tx_data, packet_size);
             memset(rx_buf[i], 0x00, packet_size);
         }
+
+        
+
+
         
         for(int i = 0; i<t_n; i++) { //queuing all transactions and getting the addr of all
             CHECK_ERR(ret = spi_device_queue_trans(master_handle,&_trans[i], portMAX_DELAY), vTaskDelete(NULL));

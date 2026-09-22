@@ -1,6 +1,8 @@
 #pragma once
 #include <inttypes.h>
 
+#define DATA_SIZE 14
+
 #include "dma_mgr.h"
 
 typedef struct {

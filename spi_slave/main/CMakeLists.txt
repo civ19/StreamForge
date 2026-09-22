@@ -9,4 +9,5 @@ idf_component_register(SRCS "main.c"
                                  "../../shared/utils"
                     REQUIRES driver
                              esp_timer
+                             esp_rom
                     )
