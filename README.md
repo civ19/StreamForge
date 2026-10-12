@@ -301,7 +301,7 @@ rather than simply demonstrating that SPI communication works.
 
 | Area             | Technology                  |
 | ---- ----------- | --------------------------- |
-| MCUs             | ESP32-S3 & ESP32                   |
+| MCUs             | ESP32-S3 & ESP32            |
 | Language         | C                           |
 | Framework        | ESP-IDF                     |
 | RTOS             | FreeRTOS                    |
