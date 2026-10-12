@@ -308,8 +308,8 @@ rather than simply demonstrating that SPI communication works.
 | Communication    | SPI                         |
 | Data Transfer    | DMA                         |
 | Synchronization  | FreeRTOS Queues             |
-| Memory          |  DMA-capable heap            |
-| Testing         |  Stress / validation testing |
+| Memory           | DMA-capable heap            |
+| Testing          | Stress / validation testing |
 
 ---
 
