@@ -299,17 +299,17 @@ rather than simply demonstrating that SPI communication works.
 
 ### Technology
 
-| Area            | Technology                  |
-| --------------- | --------------------------- |
-| MCU             | ESP32-S3                    |
-| Language        | C                           |
-| Framework       | ESP-IDF                     |
-| RTOS            | FreeRTOS                    |
-| Communication   | SPI                         |
-| Data Transfer   | DMA                         |
-| Synchronization | FreeRTOS Queues             |
-| Memory          | DMA-capable heap            |
-| Testing         | Stress / validation testing |
+| Area             | Technology                  |
+| ---- ----------- | --------------------------- |
+| MCUs             | ESP32-S3 & ESP32                   |
+| Language         | C                           |
+| Framework        | ESP-IDF                     |
+| RTOS             | FreeRTOS                    |
+| Communication    | SPI                         |
+| Data Transfer    | DMA                         |
+| Synchronization  | FreeRTOS Queues             |
+| Memory          |  DMA-capable heap            |
+| Testing         |  Stress / validation testing |
 
 ---
 
