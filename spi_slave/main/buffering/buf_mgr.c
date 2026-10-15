@@ -6,6 +6,7 @@
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "esp_heap_caps.h"
+#include "esp_rom_crc.h"
 
 #include "dma_mgr.h"
 #include "app_types.h"
@@ -46,15 +47,6 @@ void consumer_task(void *pv) {
     bool valid = true;
 
     mutex_log('I', TAG, "Flushing stale buffer tokens on boot...");
-    AppBuffer *stale_tok = NULL;
-/*
-    //immediately draining the full queue tokens
-    while(xQueueReceive(full_queue, &stale_tok, 0)) {
-        memset(stale_tok->rx_buf, 0x00, PKT_SIZE);
-        memset(stale_tok->tx_buf, 0x00, PKT_SIZE);
-
-        xQueueSend(empty_queue, &stale_tok, 0);
-    }*/
 
     mutex_log('I', TAG, "Pipeline flushed. Starting operational sync.");
 
@@ -68,6 +60,33 @@ void consumer_task(void *pv) {
             pkt_rec++;
 
             received_seq = finished_buf->rx_buf[1];
+
+            //packet validation pass 1
+            if(finished_buf->rx_buf[0] != MAGIC_BYTE) {
+                mutex_log('W', TAG, "Malformed packet detected! Dropping frame.");
+                memset(finished_buf->rx_buf, 0x00, PKT_SIZE);
+                memset(finished_buf->tx_buf, 0x00, PKT_SIZE);
+                pkt_malf++;
+
+                xQueueSend(empty_queue, &finished_buf, 0);
+                continue;
+            }
+
+            //pass 2: crc
+            uint16_t received_crc = (finished_buf->rx_buf[PKT_SIZE - 1] << 8) | finished_buf->rx_buf[PKT_SIZE - 2]; //bitmask for crc
+            uint16_t curr_crc = esp_rom_crc16_le(0, finished_buf->rx_buf, DATA_SIZE);
+
+            if(curr_crc != received_crc) {
+                mutex_log('W', TAG, "CRC Checksum invalid! Corrupted Packet! Dropping frame.");
+                pkt_malf++;
+
+                memset(finished_buf->rx_buf, 0x00, PKT_SIZE);
+                memset(finished_buf->tx_buf, 0x00, PKT_SIZE);
+                xQueueSend(empty_queue, &finished_buf, 0);
+                continue;
+            }
+
+            //pass 3: seq
 
             if(synced == false) {
                 exp_seq = received_seq;
@@ -87,16 +106,7 @@ void consumer_task(void *pv) {
             }
             
             exp_seq++;
-
-            if(finished_buf->rx_buf[0] != MAGIC_BYTE) {
-                mutex_log('W', TAG, "Malformed packet detected! Dropping frame.");
-                memset(finished_buf->rx_buf, 0x00, PKT_SIZE);
-                memset(finished_buf->tx_buf, 0x00, PKT_SIZE);
-                pkt_malf++;
-
-                xQueueSend(empty_queue, &finished_buf, 0);
-                continue;
-            }
+            
             memset(finished_buf->rx_buf, 0x00, PKT_SIZE);
             memset(finished_buf->tx_buf, 0x00, PKT_SIZE);
 

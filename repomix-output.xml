@@ -1,0 +1,1671 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+.devcontainer/
+  devcontainer.json
+  Dockerfile
+shared/
+  .vscode/
+    settings.json
+  utils/
+    app_types.h
+    CMakeLists.txt
+    dma_mgr.c
+    dma_mgr.h
+    forge_err.h
+    forge_log.c
+    forge_log.h
+spi_master/
+  .vscode/
+    c_cpp_properties.json
+    settings.json
+  main/
+    spi_master_pipeline/
+      CMakeLists.txt
+      spi_master.c
+      spi_master.h
+    CMakeLists.txt
+    main.c
+  CMakeLists.txt
+spi_slave/
+  .vscode/
+    c_cpp_properties.json
+    settings.json
+  main/
+    buffering/
+      buf_mgr.c
+      buf_mgr.h
+      CMakeLists.txt
+    spi_slave_pipeline/
+      CMakeLists.txt
+      spi_slave.c
+      spi_slave.h
+    CMakeLists.txt
+    main.c
+  CMakeLists.txt
+test_app/
+  .vscode/
+    c_cpp_properties.json
+  main/
+    CMakeLists.txt
+    main.c
+    test_crc.c
+  CMakeLists.txt
+.gitignore
+README.md
+StreamForge.code-workspace
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path=".devcontainer/devcontainer.json">
+{
+	"name": "ESP-IDF QEMU",
+	"build": {
+		"dockerfile": "Dockerfile"
+	},
+	"customizations": {
+		"vscode": {
+			"settings": {
+				"terminal.integrated.defaultProfile.linux": "bash",
+				"idf.gitPath": "/usr/bin/git"
+			},
+			"extensions": [
+				"espressif.esp-idf-extension",
+				"espressif.esp-idf-web"
+			]
+		}
+	},
+	"runArgs": ["--privileged"]
+}
+</file>
+
+<file path=".devcontainer/Dockerfile">
+ARG DOCKER_TAG=latest
+FROM espressif/idf:${DOCKER_TAG}
+
+ENV LC_ALL=C.UTF-8
+ENV LANG=C.UTF-8
+
+RUN apt-get update -y && apt-get install udev -y
+
+RUN echo "source /opt/esp/idf/export.sh > /dev/null 2>&1" >> ~/.bashrc
+
+ENTRYPOINT [ "/opt/esp/entrypoint.sh" ]
+
+CMD ["/bin/bash", "-c"]
+</file>
+
+<file path="shared/.vscode/settings.json">
+{
+    "cmake.sourceDirectory": "C:/Summer_2026/Embedded/ESP32/Projects/StreamForge/shared/utils"
+}
+</file>
+
+<file path="shared/utils/CMakeLists.txt">
+# Production - Shared/CMakeLists.txt
+idf_component_register(SRCS "buffering/buf_mgr.c"
+                            "utils/forge_log.c"
+                            "utils/forge_err.c"
+                            "utils/dma_mgr.c"
+                       INCLUDE_DIRS "."
+                       REQUIRES driver)
+</file>
+
+<file path=".gitignore">
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Directory metadata
+.directory
+
+# Temporary files
+*~
+*.swp
+*.swo
+*.bak
+*.tmp
+
+# Log files
+*.log
+
+# Build artifacts and directories
+**/build/
+build/
+*.o
+*.a
+*.out
+*.exe # For any host-side utilities compiled on Windows
+
+# ESP-IDF specific build outputs
+*.bin
+*.elf
+*.map
+flasher_args.json # Generated in build directory
+sdkconfig.old
+sdkconfig
+
+# ESP-IDF dependencies
+# For older versions or manual component management
+/components/.idf/
+**/components/.idf/
+# For modern ESP-IDF component manager
+managed_components/
+# If ESP-IDF tools are installed/referenced locally to the project
+.espressif/
+
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+install_manifest.txt
+CTestTestfile.cmake
+
+# Python environment files
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+*.egg-info/
+dist/
+
+# Virtual environment folders
+venv/
+.venv/
+env/
+
+# Language Servers
+.clangd/
+.ccls-cache/
+compile_commands.json
+
+# Windows specific
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# User-specific configuration files
+*.user
+*.workspace # General workspace files, can be from various tools
+*.suo       # Visual Studio Solution User Options
+*.sln.docstates # Visual Studio
+</file>
+
+<file path="shared/utils/dma_mgr.c">
+#include "dma_mgr.h"
+#include "forge_err.h"
+#include "forge_log.h"
+
+#include "esp_heap_caps.h"
+
+static const char *TAG = "DMA";
+
+
+void *dma_alloc(size_t size) {
+    return heap_caps_malloc(size, MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
+}
+
+void* dma_slave_alloc(size_t size) {
+    return heap_caps_malloc(size, MALLOC_CAP_DMA );
+}
+</file>
+
+<file path="shared/utils/dma_mgr.h">
+#pragma once
+
+#include <stddef.h>
+
+#define MAGIC_BYTE 0x5A
+#define PKT_SIZE 16
+
+extern int t_stop;
+void *dma_alloc(size_t size);
+
+void* dma_slave_alloc(size_t size);
+</file>
+
+<file path="shared/utils/forge_log.c">
+#include "forge_log.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
+#include "esp_log.h"
+
+#include <assert.h>
+
+SemaphoreHandle_t printMutex = NULL;
+
+
+void mutex_log(char type, const char *tag, const char *format, ...) {
+
+    assert(tag != NULL);
+    assert(format != NULL);
+    esp_log_level_t level;
+
+    switch (type) {
+        case 'E': level = ESP_LOG_ERROR; break;
+        case 'W': level = ESP_LOG_WARN;  break;
+        case 'I': level = ESP_LOG_INFO;  break;
+        case 'D': level = ESP_LOG_DEBUG; break;
+        default:  level = ESP_LOG_INFO; break;
+    }
+
+    char new_format[256];
+    snprintf(new_format, sizeof(new_format), "%s\n", format);
+
+    va_list args;
+    va_start(args, format);
+
+    if (printMutex == NULL) {
+        esp_log_writev(level, tag, new_format, args);
+    }
+    else if (xSemaphoreTake(printMutex, portMAX_DELAY) == pdTRUE) {
+        esp_log_writev(level, tag, new_format, args);
+        xSemaphoreGive(printMutex);
+    }
+
+    va_end(args);
+}
+</file>
+
+<file path="shared/utils/forge_log.h">
+#pragma once
+
+#include "freertos/FreeRTOS.h" 
+#include "freertos/semphr.h"
+#include "esp_err.h"
+
+extern SemaphoreHandle_t printMutex;
+
+void mutex_log(char type, const char *tag, const char *format, ...);
+</file>
+
+<file path="spi_master/main/spi_master_pipeline/CMakeLists.txt">
+idf_component_register(
+    SRCS "spi_master.c"
+    INCLUDE_DIRS "."
+    PRIV_REQUIRES esp_rom
+)
+</file>
+
+<file path="spi_master/main/spi_master_pipeline/spi_master.c">
+#include "spi_master.h"
+
+#include "driver/spi_master.h"
+#include "driver/gpio.h"
+#include <string.h>
+#include "esp_log.h"
+#include <assert.h>
+#include "esp_rom_crc.h"
+
+#include "forge_err.h"
+#include "forge_log.h"
+#include "dma_mgr.h"
+
+//esp32 base
+#define MOSI GPIO_NUM_23
+#define MISO GPIO_NUM_19
+#define SCLK GPIO_NUM_18
+#define CS   GPIO_NUM_5
+
+static const char *TAG = "SPI_MASTER";
+
+spi_device_handle_t master_handle; 
+
+esp_err_t init_spi_bus(void) {
+    spi_bus_config_t bus_conf = {};
+    bus_conf.mosi_io_num = MOSI;
+    bus_conf.miso_io_num = MISO;
+    bus_conf.sclk_io_num = SCLK;
+    bus_conf.quadhd_io_num = -1;
+    bus_conf.quadwp_io_num = -1;
+    bus_conf.max_transfer_sz = 1024;
+    
+
+    esp_err_t ret;
+
+    
+    CHECK_ERR(ret = spi_bus_initialize(SPI2_HOST, &bus_conf, SPI_DMA_CH_AUTO), return ret); //error checking
+
+    mutex_log('E', TAG, "SPI Physical Bus Initialized Successfully.");
+
+    return ESP_OK;
+}
+
+esp_err_t init_spi_devs(void) {
+    spi_device_interface_config_t dev_conf = {
+        .clock_speed_hz = 1 * 1000 * 1000, //1mhz
+        .mode = 0,
+        .spics_io_num = CS, //cs gpio
+        .queue_size = 1, 
+    };
+
+    esp_err_t ret;
+
+    CHECK_ERR(ret = spi_bus_add_device(SPI2_HOST, &dev_conf, &master_handle), return ret);
+
+    mutex_log('I', TAG, "SPI Dev Interface Initialized Successfully.");
+
+    return ESP_OK;
+
+}
+
+spi_transaction_t init_trans(uint8_t *tx_buf, uint8_t *rx_buf, size_t p_size) { //since i want the ptr to the buffers not the values in it
+
+    spi_transaction_t _trans = {};
+    _trans.tx_buffer = tx_buf;
+    _trans.rx_buffer = rx_buf;
+    _trans.length = p_size * 8; //16 bytes, 8 bits per byte
+
+    return _trans; //also this is just a helper function to generate transactions. will be good for scale/when you want alot of transactions asyncrhonously
+
+}
+
+esp_err_t check_bufs(uint8_t* tx_buf, uint8_t* rx_buf, const char* msg) {
+
+    if (tx_buf == NULL || rx_buf == NULL) { //validation check 
+        mutex_log('E', TAG, msg);
+        free(tx_buf);
+        free(rx_buf);
+        return ESP_ERR_NO_MEM;
+    }
+
+    return ESP_OK;
+}
+
+esp_err_t scale_buf_alloc(uint8_t** tx_buf, uint8_t** rx_buf, size_t n_bufs, size_t bytes) {
+    
+    esp_err_t ret;
+
+    for(int i = 0; i<n_bufs; i++) { //allocating the bytes. n_bufs ius number of buffers were doing, which is equal to the trasnactions numnber
+        tx_buf[i] = dma_alloc(bytes);
+        rx_buf[i] = dma_alloc(bytes);
+
+        ret = check_bufs(tx_buf[i], rx_buf[i], "dma_alloc Pre loop failed. No Memory.");
+        if (ret != ESP_OK) return ret;
+    }
+
+    return ESP_OK;
+}
+
+
+
+void master_transmit_task(void *pv) { 
+
+    size_t packet_size = 16; //16 for 16 bytes
+    size_t t_n = 1; //number of transactions
+    esp_err_t ret;
+
+    spi_transaction_t _trans[t_n]; //arr of transactions
+    spi_transaction_t *trans_addr[t_n];
+
+    uint8_t tx_data[packet_size];
+    uint8_t *tx_buf[t_n]; //ptrs to the buffers were gonna allocate later
+    uint8_t *rx_buf[t_n];
+    static uint8_t val = 0;
+
+    tx_data[0] = MAGIC_BYTE;
+
+
+    //allocating bufs then checking if any of the buf allocs failed
+    ret = scale_buf_alloc(tx_buf, rx_buf, t_n, packet_size);
+    if (ret != ESP_OK) vTaskDelete(NULL);
+
+
+    //initializing and scaling transactions and configuring em
+    for(int i = 0; i<t_n; i++) { 
+        _trans[i] = init_trans(tx_buf[i], rx_buf[i], packet_size);
+    }
+
+    static int i = 1;
+
+    for(;;) {
+
+        //generating tx data arr values
+        for(int n = 1; n<packet_size - 2; n++) tx_data[n] = (uint8_t)val;
+        
+        i++;
+        val++; //seq 
+        
+
+        uint16_t crc_val = esp_rom_crc16_le(0, tx_data, PKT_SIZE - 2);
+
+        tx_data[PKT_SIZE - 2] = (uint8_t)(crc_val & 0xFF); //low byte
+        tx_data[PKT_SIZE - 1] = (uint8_t)(crc_val >> 8 & 0xFF); //high byte
+
+        //clearing rx bufs and copying tx data into the allocated buf
+        for(int i = 0; i<t_n; i++) {
+            memcpy(tx_buf[i], tx_data, packet_size);
+            memset(rx_buf[i], 0x00, packet_size);
+        }
+
+        for(int k = 0; k<t_n; k++) { //queuing all transactions and getting the addr of all
+            CHECK_ERR(ret = spi_device_queue_trans(master_handle,&_trans[k], portMAX_DELAY), vTaskDelete(NULL));
+            trans_addr[k] = &_trans[k];
+        }
+        mutex_log('I', TAG, "All transactions successfully queued. Results incoming...");
+
+        for(int i = 0; i<t_n; i++) { //getting reuslt 
+            CHECK_ERR(ret = spi_device_get_trans_result(master_handle,&trans_addr[i], portMAX_DELAY), vTaskDelete(NULL));
+            printf("Transaction buffer %d: ", i+1);
+            ESP_LOG_BUFFER_HEX(TAG, tx_buf[i], packet_size);
+        }
+
+        //resetting bufs to 0 so we can reuse them for all trans 
+        for(int i = 0; i<t_n; i++) {
+            memset(tx_buf[i], 0x00, packet_size);
+            memset(rx_buf[i], 0x00, packet_size);
+        }
+        
+        vTaskDelay(pdMS_TO_TICKS(500));
+    }
+
+    for(int i = 0; i<t_n; i++) { //freeing
+        free(tx_buf[i]);
+        free(rx_buf[i]);
+    }
+
+    
+}
+</file>
+
+<file path="spi_master/main/spi_master_pipeline/spi_master.h">
+#pragma once
+
+#include "esp_err.h"
+#include "driver/spi_master.h"
+
+
+esp_err_t init_spi_bus(void);
+esp_err_t init_spi_devs(void);
+void master_transmit_task(void* pv);
+
+//helpers
+spi_transaction_t init_trans(uint8_t *tx_buf, uint8_t *rx_buf, size_t p_size);
+esp_err_t check_bufs(uint8_t* tx_buf, uint8_t* rx_buf, const char* msg);
+esp_err_t scale_buf_alloc(uint8_t** tx_buf, uint8_t** rx_buf, size_t n_bufs, size_t bytes);
+</file>
+
+<file path="spi_master/CMakeLists.txt">
+cmake_minimum_required(VERSION 3.16)
+
+include($ENV{IDF_PATH}/tools/cmake/project.cmake)
+project(spi_master)
+</file>
+
+<file path="spi_slave/main/buffering/CMakeLists.txt">
+idf_component_register(
+    SRCS "buf_mgr.c"
+    INCLUDE_DIRS "."
+)
+</file>
+
+<file path="spi_slave/main/spi_slave_pipeline/CMakeLists.txt">
+idf_component_register(
+    SRCS "spi_slave.c"
+    INCLUDE_DIRS "."
+    PRIV_REQUIRES esp_rom
+)
+</file>
+
+<file path="spi_slave/main/spi_slave_pipeline/spi_slave.c">
+#include "spi_slave.h"
+
+#include "driver/spi_slave.h"
+#include "driver/gpio.h"
+#include "esp_log.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/queue.h"
+#include "buffering/buf_mgr.h"
+
+#include "forge_err.h"
+#include "forge_log.h"
+#include "dma_mgr.h"
+
+#include <stddef.h>
+
+//esp32s3
+// ESP32-S3 wroom — SPI master
+#define MOSI GPIO_NUM_11
+#define MISO GPIO_NUM_13
+#define SCLK GPIO_NUM_12
+#define CS   GPIO_NUM_10
+
+
+static const char *TAG = "SPI_SLAVE";
+
+typedef struct {
+    AppBuffer app_buf;
+    spi_slave_transaction_t _etrans;
+    
+} EngineBuffer;
+
+esp_err_t init_slave_bus(void) {
+    spi_bus_config_t slave_bus_conf = {};
+    slave_bus_conf.mosi_io_num = MOSI;
+    slave_bus_conf.miso_io_num = MISO;
+    slave_bus_conf.max_transfer_sz = 1024;
+    slave_bus_conf.quadhd_io_num = -1;
+    slave_bus_conf.quadwp_io_num = -1;
+    slave_bus_conf.sclk_io_num = SCLK;
+    
+
+    mutex_log('I', TAG, "SPI Slave bus initialized.");
+    esp_err_t ret;
+
+     
+
+    spi_slave_interface_config_t slave_cfg = {};
+    slave_cfg.mode = 0;
+    slave_cfg.queue_size = 1;
+    slave_cfg.spics_io_num = CS;
+
+    CHECK_ERR(ret = spi_slave_initialize(SPI2_HOST, &slave_bus_conf, &slave_cfg, SPI_DMA_CH_AUTO), return ret);
+
+    mutex_log('I', TAG, "SPI Slave dev initialized.");
+    return ESP_OK;
+    
+
+
+}
+
+char string_buf[60];
+
+memset("string", &string_buf, 5);
+
+const char* string
+
+void init_trans(spi_slave_transaction_t *_trans, uint8_t *tx_buf, uint8_t *rx_buf, size_t p_size) { 
+
+    memset(_trans, 0, sizeof(spi_slave_transaction_t)); //clearing the mem loc
+    //setting the buffers
+    _trans->tx_buffer = tx_buf;
+    _trans->rx_buffer = rx_buf;
+    _trans->length = p_size * 8;
+
+}
+
+esp_err_t check_bufs(uint8_t* tx_buf, uint8_t* rx_buf, const char* msg) {
+
+    if (tx_buf == NULL || rx_buf == NULL) { //validation check 
+        mutex_log('E', TAG, msg);
+        free(tx_buf);
+        free(rx_buf);
+        return ESP_ERR_NO_MEM;
+    }
+
+    return ESP_OK;
+    
+}
+
+esp_err_t scale_buf_alloc(uint8_t **tx_buf, uint8_t** rx_buf, size_t n_bufs, size_t bytes) {
+    
+    esp_err_t ret;
+
+    for(int i = 0; i<n_bufs; i++) { //allocating the bytes. n_bufs ius number of buffers were doing, which is equal to the trasnactions numnber
+        tx_buf[i] = dma_alloc(bytes);
+        rx_buf[i] = dma_alloc(bytes);
+
+        ret = check_bufs(tx_buf[i], rx_buf[i], "dma_alloc Pre loop failed. No Memory.");
+        if (ret != ESP_OK) return ret;
+    }
+
+    return ESP_OK;
+}
+
+static EngineBuffer bufs[2];
+
+esp_err_t init_slave_engine_bufs(QueueHandle_t to_empty_queue) {
+    for(int i = 0; i<2; i++) {
+        //allocate dma buffers
+        bufs[i].app_buf.rx_buf = dma_alloc(PKT_SIZE);
+        bufs[i].app_buf.tx_buf = dma_alloc(PKT_SIZE);
+        bufs[i].app_buf.id = i;
+
+        //assertions
+        assert(bufs[i].app_buf.rx_buf != NULL);
+        assert(bufs[i].app_buf.tx_buf != NULL);
+
+        //setting to 0
+        memset(bufs[i].app_buf.rx_buf, 0x00, PKT_SIZE); //setting a pkt_size buffer to 0
+        memset(bufs[i].app_buf.tx_buf, 0x00, PKT_SIZE); //setting a pkt_size buffer to 0
+        memset(&bufs[i]._etrans, 0, sizeof(spi_slave_transaction_t));
+
+        //spi hardware config
+        init_trans(&bufs[i]._etrans, bufs[i].app_buf.tx_buf, bufs[i].app_buf.rx_buf, PKT_SIZE);
+
+        bufs[i]._etrans.user = (void*)&bufs[i].app_buf; //safe bucket
+
+        //pushing app buf 
+        AppBuffer *pv_app = &bufs[i].app_buf;
+        xQueueSend(to_empty_queue, &pv_app, 0);
+    }
+
+    return ESP_OK;
+}
+
+
+void slave_transmit_task(void *pv) {
+    printf("SLAVE TASK STARTED\n");
+    esp_err_t ret;
+
+    AppBuffer *empty_buf = NULL;         
+    spi_slave_transaction_t *ret_trans = NULL; 
+
+    // PRIME THE PIPELINE: Load BOTH hardware slots immediately at startup
+    for (int i = 0; i < 2; i++) {
+        if (xQueueReceive(empty_queue, &empty_buf, portMAX_DELAY)) {
+            EngineBuffer *engine_buf = (EngineBuffer *)((char *)empty_buf - offsetof(EngineBuffer, app_buf));
+            spi_slave_queue_trans(SPI2_HOST, &engine_buf->_etrans, portMAX_DELAY);
+        }
+    }
+
+    for(;;) {
+     
+        //block until the oldest queued transaction completes
+        ret = spi_slave_get_trans_result(SPI2_HOST, &ret_trans, pdMS_TO_TICKS(1000)); //result goes in ret trans
+
+        if (ret == ESP_ERR_TIMEOUT) continue; 
+        else if (ret != ESP_OK) {
+            mutex_log('E', TAG, "Fatal Hardware SPI Transaction Error!");
+            vTaskDelete(NULL);
+        }
+
+        //extract the clean application token from the finished transaction's bucket
+        AppBuffer *finished_buf = (AppBuffer *)ret_trans->user;
+
+      
+        // This prints out the rx_buf array values up to PKT_SIZE in Hex format
+        ESP_LOG_BUFFER_HEX("SPI_SLAVE_ENGINE", finished_buf->rx_buf, PKT_SIZE);
+
+        //transfer the clean public token over to the application layer / CPU
+        xQueueSend(full_queue, &finished_buf, 0);
+
+        if(xQueueReceive(empty_queue, &empty_buf, portMAX_DELAY)) {
+            EngineBuffer *engine_buf = (EngineBuffer *)((char*)empty_buf - offsetof(EngineBuffer, app_buf));
+            spi_slave_queue_trans(SPI2_HOST, &engine_buf->_etrans, portMAX_DELAY);
+        }
+    }
+}
+</file>
+
+<file path="spi_slave/main/spi_slave_pipeline/spi_slave.h">
+#pragma once
+
+#include "esp_err.h"
+#include "driver/spi_slave.h"
+#include "app_types.h"
+
+#include "freertos/FreeRTOS.h"
+#include "freertos/queue.h"
+
+
+
+esp_err_t init_slave_bus(void);
+void slave_transmit_task(void* pv);
+
+void init_trans(spi_slave_transaction_t *_trans, uint8_t *tx_buf, uint8_t *rx_buf, size_t p_size);
+esp_err_t check_bufs(uint8_t* tx_buf, uint8_t* rx_buf, const char* msg);
+esp_err_t scale_buf_alloc(uint8_t** tx_buf, uint8_t** rx_buf, size_t n_bufs, size_t bytes);
+esp_err_t init_slave_engine_bufs(QueueHandle_t to_empty_queue);
+</file>
+
+<file path="README.md">
+# StreamForge
+
+**High-throughput SPI data pipeline for the ESP32-S3, built around DMA, double buffering, FreeRTOS queues, and explicit CPU/DMA buffer ownership.**
+
+StreamForge is an embedded systems project focused on building and validating a reliable SPI data pipeline rather than simply transferring bytes between two devices.
+
+The project uses an ESP32-S3 as the master and an SPI slave, with DMA-backed transactions and a double-buffered producer/consumer architecture designed to keep data moving while the CPU processes completed buffers.
+
+---
+
+## Overview
+
+The core problem StreamForge explores is:
+
+> **How can an embedded system continuously receive SPI data through DMA while the CPU processes previous data without corrupting buffers or stalling the pipeline?**
+
+Instead of having the CPU wait for every SPI transaction to finish, StreamForge separates **DMA ownership** from **CPU ownership**.
+
+```text
+                    SPI
+                     │
+                     ▼
+              ┌─────────────┐
+              │  SPI / DMA  │
+              └──────┬──────┘
+                     │
+              Completed Buffer
+                     │
+                     ▼
+              ┌─────────────┐
+              │  Full Queue │
+              └──────┬──────┘
+                     │
+                     ▼
+              ┌─────────────┐
+              │     CPU     │
+              │  Consumer   │
+              └──────┬──────┘
+                     │
+                Buffer Cleared
+                     │
+                     ▼
+              ┌─────────────┐
+              │ Empty Queue │
+              └──────┬──────┘
+                     │
+                     ▼
+                 DMA Reuse
+
+```
+The result is a small producer/consumer pipeline where buffers continuously circulate between the DMA subsystem and the CPU.
+
+## Key Features
+- ESP32-S3 SPI master/slave communication
+- ESP-IDF
+- FreeRTOS
+- SPI DMA transactions
+- Double buffering
+- Producer/consumer architecture
+- FreeRTOS queues for buffer ownership transfer
+- Explicit CPU/DMA buffer ownership
+- Sequence-number validation
+- Magic-byte packet validation
+- Malformed-frame detection
+- Buffer recycling
+- DMA-capable heap allocation
+- Stress testing
+- Packet, sequence-error, malformed-frame, and timeout statistics
+- Memory-pressure testing
+- Configurable transaction sizes
+
+---
+## Architecture
+
+StreamForge uses two buffers as a rotating pool.
+
+At any given time, a buffer is either:
+
+Available for DMA
+Owned by the DMA pipeline
+Waiting for CPU processing
+Owned by the CPU
+Returned to the DMA pool
+
+The queues represent ownership rather than simply acting as notification mechanisms.
+
+Empty Queue
+
+Contains buffers available for another DMA transaction.
+
+```
+empty_queue
+    │
+    ├── Buffer 0
+    └── Buffer 1
+```
+Full Queue
+
+Contains buffers whose DMA transaction has completed and are ready for CPU processing.
+```
+full_queue
+    │
+    ├── Buffer 0
+    └── Buffer 1
+```
+
+The consumer retrieves a completed buffer, validates and clears it, then returns it to the empty queue.
+
+This prevents the CPU from modifying a buffer while DMA may still be using it.
+
+---
+
+## Packet Format
+
+StreamForge uses a simple packet structure for validation.
+```
+┌────────────┬────────────┬────────────────────────┐
+│ Magic Byte │ Sequence # │       Payload          │
+└────────────┴────────────┴────────────────────────┘
+     1 B          1 B              N B
+```
+###Magic Byte
+
+The first byte identifies a valid StreamForge frame.
+
+If the expected magic byte is missing, the frame is treated as malformed and discarded.
+
+Sequence Number
+
+The second byte is incremented for every transmitted packet.
+
+The consumer maintains an expected sequence number and compares it against the received value.
+
+This allows StreamForge to detect:
+
+- Dropped frames
+- Unexpected ordering
+- Synchronization problems
+- Pipeline failures
+
+When a sequence break is detected, the consumer resynchronizes to the received sequence number.
+
+---
+
+## Buffer Ownership
+
+One of the primary design goals is making ownership explicit.
+
+              ┌─────────────┐
+              │ Empty Queue │
+              └──────┬──────┘
+                     │
+                     ▼
+                   DMA
+                     │
+                     ▼
+              ┌─────────────┐
+              │ Full Queue  │
+              └──────┬──────┘
+                     │
+                     ▼
+                   CPU
+                     │
+              clear / validate
+                     │
+                     ▼
+              ┌─────────────┐
+              │ Empty Queue │
+              └─────────────┘
+
+The CPU does not process a buffer until it has been transferred to the full queue.
+
+Likewise, a buffer is not returned to the DMA pipeline until CPU processing has completed.
+
+This makes buffer reuse deterministic and avoids accidental concurrent access.
+
+---
+
+## DMA
+
+StreamForge allocates its transaction buffers from memory suitable for DMA operations.
+
+The allocation layer handles creation of the transmit and receive buffer pools and validates allocation success before the pipeline begins.
+
+The goal is to keep the DMA layer independent from the higher-level consumer logic.
+
+This also makes it possible to experiment with different buffer sizes and transaction counts without rewriting the pipeline architecture.
+
+---
+
+## Concurrency
+
+The system uses separate FreeRTOS tasks for different responsibilities.
+
+Conceptually:
+```
+Master / Producer
+        │
+        ▼
+     SPI DMA
+        │
+        ▼
+     Full Queue
+        │
+        ▼
+    Consumer
+        │
+        ▼
+   Empty Queue
+```
+
+The producer and consumer operate independently and communicate through FreeRTOS queues.
+
+This allows the CPU to process one completed transaction while another buffer is being prepared for DMA.
+
+---
+## Validation
+
+Each received frame goes through several checks.
+
+Sequence Validation
+`received_seq == expected_seq`
+
+If the values differ, a sequence error is recorded and the consumer resynchronizes.
+
+---
+
+### Packet Validation
+
+The magic byte is checked independently.
+
+A malformed packet is dropped rather than being passed further through the pipeline.
+
+---
+
+### Statistics
+
+The stress-test consumer tracks:
+```
+Received packets
+Valid packets
+Sequence errors
+Malformed packets
+Task timeouts
+```
+Example:
+```
+Received packets: 61
+Valid packets: 61
+Sequence break packets: 0
+Malformed packets: 0
+Task timeouts: 0
+Stress Testing
+```
+StreamForge includes a stress-testing path intended to expose pipeline failures under continuous operation.
+
+The test tracks both functional correctness and resource behavior.
+
+Example metrics include:
+
+packet throughput
+packet validity
+sequence integrity
+malformed frames
+task timeouts
+DMA-capable heap before/after testing
+
+Memory pressure can be measured using the DMA-capable heap:
+
+DMA heap before: 303240
+DMA heap after:  290308
+DMA heap delta:  -12932
+
+This provides a simple way to observe the memory cost of the active DMA pipeline.
+
+The stress-test logic is primarily a development/validation tool and is separate from the core data-transfer architecture.
+
+---
+
+Why StreamForge?
+
+StreamForge was built to explore a problem that is easy to hide behind high-level APIs:
+
+`How do you move data continuously through an embedded system while multiple components need access to the same memory at different times?`
+
+The project focuses on the underlying mechanics:
+
+- DMA
+- memory ownership
+- buffering
+- synchronization
+- queue-based communication
+- validation
+- resource constraints
+
+rather than simply demonstrating that SPI communication works.
+
+---
+
+### Technology
+
+| Area            | Technology                  |
+| --------------- | --------------------------- |
+| MCU             | ESP32-S3                    |
+| Language        | C                           |
+| Framework       | ESP-IDF                     |
+| RTOS            | FreeRTOS                    |
+| Communication   | SPI                         |
+| Data Transfer   | DMA                         |
+| Synchronization | FreeRTOS Queues             |
+| Memory          | DMA-capable heap            |
+| Testing         | Stress / validation testing |
+
+---
+
+## Project Structure
+
+A simplified view of the project:
+```
+StreamForge/
+├── spi_master/
+│   ├── main/
+│   │   ├── master.c
+│   │   ├── ...
+│   │   └── ...
+│   └── ...
+│
+├── spi_slave/
+│   ├── main/
+│   │   ├── slave.c
+│   │   ├── ...
+│   │   └── ...
+│   └── ...
+│
+└── README.md
+```
+The exact structure may evolve as additional testing and infrastructure are added.
+
+---
+
+## Roadmap
+
+StreamForge is intentionally versioned as an evolving embedded systems project.
+
+**v1.0.0**
+
+Core SPI/DMA pipeline:
+
+- SPI communication
+- DMA
+- double buffering
+- FreeRTOS queues
+- CPU/DMA ownership
+- packet validation
+- sequence tracking
+- stress testing
+
+**v1.1.0**
+
+- Data-integrity improvements:
+- CRC-based packet validation
+- additional edge-case handling
+
+**v1.2.0**
+
+- Testing infrastructure:
+- Unity test framework
+- CMock
+- expanded test coverage
+
+**v1.3.0**
+
+- Higher-throughput SPI architecture:
+- Quad SPI
+- larger transactions
+- continued buffer/throughput optimization
+
+The project is intended to stop once the architecture has served its purpose rather than endlessly adding features.
+
+---
+
+## Future Possibilities
+
+Potential extensions include:
+
+- larger transaction sizes
+- additional SPI slaves
+- more advanced CRC/error handling
+- throughput benchmarking
+- deeper memory-pressure testing
+- additional automated tests
+- multi-device SPI architectures
+
+These are intentionally secondary to keeping the core pipeline understandable and reliable.
+</file>
+
+<file path="StreamForge.code-workspace">
+{
+	"folders": [
+		{
+			"name": "Production - Master",
+			"path": "./spi_master"
+		},
+		{
+			"name": "Production - Slave",
+			"path": "./spi_slave"
+		},
+		{
+			"name": "Production - Test",
+			"path": "./test_app"
+		},
+		{
+			"name": "Production - Shared",
+			"path": "./shared"
+		}
+	],
+	"settings": {}
+}
+</file>
+
+<file path="shared/utils/forge_err.h">
+#pragma once
+
+#include "esp_err.h"
+
+
+#define CHECK_ERR(expr, action) do { \
+    esp_err_t __macro_err = (expr); \
+    if (__macro_err != ESP_OK) { \
+        mutex_log('E', TAG, "Error 0x%X (%s) at %s:%d", \
+                  __macro_err, esp_err_to_name(__macro_err), \
+                  __FILE__, __LINE__); \
+        action; \
+    } \
+} while(0)
+</file>
+
+<file path="test_app/main/CMakeLists.txt">
+# 1. 🏆 THE COMPATIBLE MOCK GENERATOR (The Official ESP-IDF Way):
+# Pass the explicit header files you want CMock to generate.
+# This macro handles the code generation AND registers the component under the hood.
+idf_component_mock(
+    MOCK_HEADER_FILES 
+        "C:/esp/v5.5.5/esp-idf/components/freertos/include/freertos/queue.h"
+    INCLUDE_DIRS
+        "."
+    REQUIRES 
+        spi_master_pipeline 
+        spi_slave_pipeline 
+        buffering 
+        utils 
+        unity
+)
+
+# 2. Register your remaining local physical test runner files normally
+# Note: Do not manually re-add "cmock" or the generated files here, 
+# as idf_component_mock hooks into the build system automatically.
+idf_component_register(
+    SRCS 
+        "main.c"
+        "test_crc.c"
+    INCLUDE_DIRS 
+        "."
+    PRIV_REQUIRES
+        # Links your main app runner against the generated mocks
+        main
+)
+</file>
+
+<file path="test_app/main/main.c">
+#include "unity.h"
+
+void app_main(void) {
+    
+}
+</file>
+
+<file path="test_app/CMakeLists.txt">
+cmake_minimum_required(VERSION 3.16)
+
+# 1. Map directly to your physical hard drive folders
+set(EXTRA_COMPONENT_DIRS 
+    "${CMAKE_CURRENT_SOURCE_DIR}/../spi_master/main/spi_master_pipeline"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../spi_slave/main/spi_slave_pipeline"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../spi_slave/main/buffering"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../shared/utils"
+)
+
+# 2. Pull in core project definitions natively
+include($ENV{IDF_PATH}/tools/cmake/project.cmake)
+
+project(streamforge_tests)
+</file>
+
+<file path="shared/utils/app_types.h">
+#pragma once
+#include <inttypes.h>
+
+#define DATA_SIZE 14
+
+#include "dma_mgr.h"
+
+typedef struct {
+    uint8_t id;
+    uint8_t *tx_buf;
+    uint8_t *rx_buf;
+} AppBuffer;
+</file>
+
+<file path="spi_slave/.vscode/settings.json">
+{
+  "idf.buildPath": "${workspaceFolder}/build",
+  "idf.buildPathWin": "${workspaceFolder}\\build",
+  "idf.customExtraVars": {},
+  "idf.currentSetup": "C:\\esp\\v5.5.5\\esp-idf",
+  "idf.portWin": "COM10"
+}
+</file>
+
+<file path="test_app/.vscode/c_cpp_properties.json">
+{
+    "configurations": [
+        {
+            "name": "ESP-IDF",
+            "includePath": [
+                "C:/esp/v5.5.5/esp-idf/components/unity/unity/src",
+                "C:/esp/v5.5.5/esp-idf/components/esp_rom/include",
+                "C:/esp/v5.5.5/esp-idf/components/esp_timer/include",
+                "C:/esp/v5.5.5/esp-idf/components/cmock/CMock/src",
+                "${workspaceFolder}/../shared/utils",
+                "${workspaceFolder}/**"
+            ],
+            "browse": {
+                "path": [
+                    "C:/esp/v5.5.5/esp-idf/components",
+                    "${workspaceFolder}"
+                ],
+                "limitSymbolsToIncludedHeaders": false
+            }
+        }
+    ],
+    "version": 4
+}
+</file>
+
+<file path="test_app/main/test_crc.c">
+#include "unity.h"
+#include "cmock.h"
+#include "app_types.h"
+
+#include "mock_queue.h"
+
+
+
+
+/*
+Test 1: Absolute Packet Drop (Invalid Magic Byte)
+
+What it tests: A packet arrives with correct CRC but Byte 0 is missing the 0x5A token
+ (simulating a loose connection or bit-shift alignment error).
+
+Expected behavior: The application must instantly discard the block, 
+execute zero business logic, and recycle the exact same pointer back to the empty_queue
+*/
+</file>
+
+<file path="spi_master/.vscode/settings.json">
+{
+    "idf.customExtraVars": {},
+    "idf.currentSetup": "C:\\esp\\v5.5.5\\esp-idf",
+    "idf.portWin": "COM8"
+    
+}
+</file>
+
+<file path="spi_slave/CMakeLists.txt">
+cmake_minimum_required(VERSION 3.16)
+
+
+include($ENV{IDF_PATH}/tools/cmake/project.cmake)
+project(spi_slave)
+</file>
+
+<file path="spi_slave/.vscode/c_cpp_properties.json">
+{
+    "configurations": [
+        {
+            "name": "ESP-IDF",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "${workspaceFolder}/main",
+                "${workspaceFolder}/main/spi_slave_pipeline",
+                "${workspaceFolder}/main/buffering",
+                "${workspaceFolder}/../shared/utils"
+            ],
+            "browse": {
+                "path": [
+                    "${workspaceFolder}"
+                ],
+                "limitSymbolsToIncludedHeaders": true
+            },
+            "compileCommands": "${workspaceFolder}/build/compile_commands.json",
+            "cStandard": "c11",
+            "cppStandard": "c++17"
+        }
+    ],
+    "version": 4
+}
+</file>
+
+<file path="spi_master/.vscode/c_cpp_properties.json">
+{
+    "configurations": [
+        {
+            "name": "ESP-IDF",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "${workspaceFolder}/main",
+                "${workspaceFolder}/main/spi_master_pipeline",
+                "${workspaceFolder}/../shared/utils"
+            ],
+            "browse": {
+                "path": [
+                    "${workspaceFolder}"
+                ],
+                "limitSymbolsToIncludedHeaders": true
+            },
+            "compileCommands": "${workspaceFolder}/build/compile_commands.json",
+            "cStandard": "c11",
+            "cppStandard": "c++17"
+        }
+    ],
+    "version": 4
+}
+</file>
+
+<file path="spi_slave/main/buffering/buf_mgr.h">
+#pragma once
+
+#include "freertos/FreeRTOS.h"
+#include "freertos/queue.h"
+
+extern QueueHandle_t empty_queue;
+extern QueueHandle_t full_queue;
+
+#define PKT_SIZE 16 //16 bytes
+#define t_n 2
+
+
+
+void buf_setup(void);
+void consumer_task(void* pv);
+void print_stress_results(void);
+</file>
+
+<file path="spi_master/main/CMakeLists.txt">
+idf_component_register(SRCS "main.c"
+                            "spi_master_pipeline/spi_master.c"
+                            "../../shared/utils/forge_log.c"
+                            "../../shared/utils/dma_mgr.c"
+                    
+                    INCLUDE_DIRS "."
+                                 "spi_master_pipeline"
+                                 "../../shared/utils"
+                                 
+                    REQUIRES driver
+                             esp_driver_spi
+                             esp_rom
+                             
+                    )
+</file>
+
+<file path="spi_slave/main/CMakeLists.txt">
+idf_component_register(SRCS "main.c"
+                            "spi_slave_pipeline/spi_slave.c"
+                            "../../shared/utils/forge_log.c"
+                            "../../shared/utils/dma_mgr.c"
+                            "buffering/buf_mgr.c"
+                    
+                    INCLUDE_DIRS "."
+                                 "spi_slave_pipeline"
+                                 "../../shared/utils"
+                    REQUIRES driver
+                             esp_timer
+                             esp_rom
+                    )
+</file>
+
+<file path="spi_master/main/main.c">
+#include "driver/spi_master.h"
+#include "driver/spi_slave.h"
+#include "spi_master_pipeline/spi_master.h"
+
+#include "forge_err.h"
+#include "forge_log.h"
+
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/semphr.h"
+
+static const char *TAG = "MAIN_MASTER";
+
+void app_main(void) {
+
+    
+    printMutex = xSemaphoreCreateMutex();
+    
+    esp_err_t err;
+
+    CHECK_ERR(err = init_spi_bus(), return);
+    CHECK_ERR(err = init_spi_devs(), return);
+
+    
+    vTaskDelay(pdMS_TO_TICKS(1000));
+    xTaskCreatePinnedToCore(master_transmit_task, "MasterTransmit", 8192, NULL, 5, NULL, 1);
+    
+}
+</file>
+
+<file path="spi_slave/main/main.c">
+#include "spi_slave_pipeline/spi_slave.h"
+#include "esp_err.h"
+#include "buffering/buf_mgr.h"
+
+#include "forge_err.h"
+#include "forge_log.h"
+
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/semphr.h"
+
+static const char* TAG = "MAIN_SLAVE";
+extern size_t start_heap;
+extern size_t runtime_baseline_heap;
+void app_main(void) {
+
+    printMutex = xSemaphoreCreateMutex();
+
+    esp_err_t err;
+
+    buf_setup();
+    CHECK_ERR(err = init_slave_bus(), return);
+    
+    xTaskCreatePinnedToCore(slave_transmit_task, "SlaveTransmit", 8192, NULL, 5, NULL, 1);
+    
+
+    xTaskCreatePinnedToCore(consumer_task, "ConsumerTask", 8192, NULL, 5, NULL, 0);
+    runtime_baseline_heap = heap_caps_get_free_size(MALLOC_CAP_DMA);
+    
+
+
+}
+</file>
+
+<file path="spi_slave/main/buffering/buf_mgr.c">
+#include "buf_mgr.h"
+
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/queue.h"
+#include "esp_log.h"
+#include "esp_timer.h"
+#include "esp_heap_caps.h"
+#include "esp_rom_crc.h"
+
+#include "dma_mgr.h"
+#include "app_types.h"
+#include "forge_err.h"
+#include "forge_log.h"
+#include <string.h>
+#include <assert.h>
+#include <inttypes.h>
+#include "spi_slave.h"
+
+
+
+static const char* TAG = "BUFFERING";
+
+static int64_t pkt_rec = 0;
+static int64_t pkt_valid = 0;
+static int64_t seq_err = 0;
+static int64_t pkt_malf = 0;
+static int64_t task_timeout = 0;
+
+size_t start_heap = 0;
+size_t runtime_baseline_heap = 0;
+
+static uint8_t exp_seq = 1;
+
+static const int64_t test_dur = 30000000;
+
+QueueHandle_t empty_queue = NULL;
+QueueHandle_t full_queue = NULL;
+
+
+void consumer_task(void *pv) {
+    AppBuffer *finished_buf = NULL;
+    
+    uint8_t received_seq;
+    
+    bool synced = false;
+    bool valid = true;
+
+    mutex_log('I', TAG, "Flushing stale buffer tokens on boot...");
+
+    mutex_log('I', TAG, "Pipeline flushed. Starting operational sync.");
+
+    while(test_dur - esp_timer_get_time() > 0) {
+
+        valid = true;
+        
+
+        mutex_log('I', TAG, "Ownership to CPU. Clearing bufs.");
+        if(xQueueReceive(full_queue, &finished_buf, pdMS_TO_TICKS(1000))) {
+            pkt_rec++;
+
+            received_seq = finished_buf->rx_buf[1];
+
+            //packet validation pass 1
+            if(finished_buf->rx_buf[0] != MAGIC_BYTE) {
+                mutex_log('W', TAG, "Malformed packet detected! Dropping frame.");
+                memset(finished_buf->rx_buf, 0x00, PKT_SIZE);
+                memset(finished_buf->tx_buf, 0x00, PKT_SIZE);
+                pkt_malf++;
+
+                xQueueSend(empty_queue, &finished_buf, 0);
+                continue;
+            }
+
+            //pass 2: crc
+            uint16_t received_crc = (finished_buf->rx_buf[PKT_SIZE - 1] << 8) | finished_buf->rx_buf[PKT_SIZE - 2]; //bitmask for crc
+            uint16_t curr_crc = esp_rom_crc16_le(0, finished_buf->rx_buf, DATA_SIZE);
+
+            if(curr_crc != received_crc) {
+                mutex_log('W', TAG, "CRC Checksum invalid! Corrupted Packet! Dropping frame.");
+                pkt_malf++;
+
+                memset(finished_buf->rx_buf, 0x00, PKT_SIZE);
+                memset(finished_buf->tx_buf, 0x00, PKT_SIZE);
+                xQueueSend(empty_queue, &finished_buf, 0);
+                continue;
+            }
+
+            //pass 3: seq
+
+            if(synced == false) {
+                exp_seq = received_seq;
+                synced = true;
+                mutex_log('I', TAG, "First packet caught! Synced sequence marker.");
+            }
+
+            if(received_seq != exp_seq) {
+                if(xSemaphoreTake(printMutex, portMAX_DELAY)) {
+                    ESP_LOGW(TAG, "Sequences Malform[DMA]! Expected Seq %d but got %d. Attempting resync...", exp_seq, received_seq);   
+                    xSemaphoreGive(printMutex);
+                }
+                
+                exp_seq = received_seq;
+                valid = false;
+                seq_err++;
+            }
+            
+            exp_seq++;
+            
+            memset(finished_buf->rx_buf, 0x00, PKT_SIZE);
+            memset(finished_buf->tx_buf, 0x00, PKT_SIZE);
+
+            mutex_log('E', TAG, "CPU Clearing Complete! Transferring to DMA.");
+            if(valid) pkt_valid++;
+            xQueueSend(empty_queue, &finished_buf, 0);
+        } else { 
+            mutex_log('E', TAG, "Timeout failed. No new buffer on time to CPU. Continuing pipeline...");
+            task_timeout++;
+        }
+            
+        
+    }
+
+    print_stress_results();
+
+    vTaskDelete(NULL);
+
+    
+}
+    
+void print_stress_results(void) {
+    size_t end_heap = heap_caps_get_free_size(MALLOC_CAP_DMA); //size in kb
+
+
+    printf("Recieved packets: %" PRId64 "\n", pkt_rec);
+    printf("Valid packets: %" PRId64 "\n", pkt_valid);
+    printf("Sequence break packets: %" PRId64 "\n", seq_err);
+    printf("Malformed packets: %" PRId64 "\n", pkt_malf);
+    printf("Task timeouts: %" PRId64 "\n\n", task_timeout);
+
+    printf("--- StreamForge Memory Analytics ---\n");
+    printf("Fixed Infrastructure Cost:  %zu bytes\n", (start_heap - runtime_baseline_heap));
+    printf("Sustained Processing Leak:  %zd bytes\n", (ssize_t)(runtime_baseline_heap - end_heap));
+    printf("------------------------------------\n");
+}
+    
+
+
+void buf_setup(void) {
+    start_heap = heap_caps_get_free_size(MALLOC_CAP_DMA);
+
+    empty_queue = xQueueCreate(2, sizeof(AppBuffer *)); //size of ptrs to bufs
+    full_queue = xQueueCreate(2, sizeof(AppBuffer *)); 
+    
+    init_slave_engine_bufs(empty_queue);
+
+
+}
+</file>
+
+</files>

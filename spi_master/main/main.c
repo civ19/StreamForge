@@ -1,6 +1,6 @@
 #include "driver/spi_master.h"
 #include "driver/spi_slave.h"
-#include "spi_pipeline/spi_master.h"
+#include "spi_master_pipeline/spi_master.h"
 
 #include "forge_err.h"
 #include "forge_log.h"
