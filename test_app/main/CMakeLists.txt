@@ -4,9 +4,12 @@ idf_component_register(
         "test_crc.c"
         "fff_globals.c"
         "../../spi_master/main/spi_master_pipeline/spi_master.c"
+        "../../spi_slave/main/buffering/buf_mgr.c"
     INCLUDE_DIRS 
         "."
         "../../spi_master/main/spi_master_pipeline"
+        "../../spi_slave/main/spi_slave_pipeline"
+        "../../spi_slave/main/buffering"
         "../../shared/utils"
     REQUIRES
         utils

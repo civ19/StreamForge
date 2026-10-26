@@ -9,7 +9,6 @@
 #include "esp_rom_crc.h"
 
 #include "dma_mgr.h"
-#include "app_types.h"
 #include "forge_err.h"
 #include "forge_log.h"
 #include <string.h>
@@ -57,7 +56,7 @@ bool process_received_packet(AppBuffer *finished_buf, bool *synced) {
 
     if(exp_crc != actual_crc) {
         mutex_log('W', TAG, "CRC - Malformed packet detected! Dropping frame.");
-        mmemset(finished_buf->rx_buf, 0x00, PKT_SIZE);
+        memset(finished_buf->rx_buf, 0x00, PKT_SIZE);
         memset(finished_buf->tx_buf, 0x00, PKT_SIZE);
         pkt_malf++;
 
@@ -99,8 +98,6 @@ bool process_received_packet(AppBuffer *finished_buf, bool *synced) {
 
 void consumer_task(void *pv) {
     AppBuffer *finished_buf = NULL;
-    
-    uint8_t received_seq;
     
     bool synced = false;
 

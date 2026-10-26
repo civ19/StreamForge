@@ -10,6 +10,7 @@
 
 
 #include "spi_master.h"
+#include "buf_mgr.h"
 
 FAKE_VALUE_FUNC(void *, dma_alloc, size_t);
 
@@ -38,19 +39,30 @@ void test_dma_alloc_returns_null_cleanly(void) {
 void test_wrong_magic_byte_drops(void) {
     //ARRANGE
     
-    QueueHandle_t empty_queue = xQueueCreate(2, sizeof(AppBuffer *)); //size of ptrs to bufs
-    QueueHandle_t full_queue = xQueueCreate(2, sizeof(AppBuffer *)); 
+    uint8_t mock_rx_data[PKT_SIZE] = {0};
+    uint8_t mock_tx_data[PKT_SIZE] = {0};
 
-    uint8_t rx_data[2] = {MAGIC_BYTE, 0x01};
-    uint8_t *rx = rx_data;
+    mock_rx_data[0] = 0x3A;
+    mock_rx_data[1] = 0x05;
 
-    AppBuffer *mock_buf = {.rx_buf = rx};
+    AppBuffer mock_buf = {
+        .id = 1,
+        .rx_buf = mock_rx_data,
+        .tx_buf = mock_tx_data
+    };
 
-    if(xQueueSend(empty_queue, &mock_buf, portMAX_DELAY)) {
-        ESP_LOGI("MOCK_TEST", "Mock Buf Sent");
+    bool mock_sync_state = false;
+
+    //ACT
+    bool result = process_received_packet(&mock_buf, &mock_sync_state);
+    
+    //ASSERT
+    TEST_ASSERT_FALSE_MESSAGE(result, "Streamforge failed to drop a packet with a bad magic byte!");
+
+    for(int i = 0; i<PKT_SIZE; i++) {
+        TEST_ASSERT_EQUAL(0x00,mock_rx_data[i]);
+        TEST_ASSERT_EQUAL(0x00, mock_tx_data[i]);
     }
-
-
 
 
     
