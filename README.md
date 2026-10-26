@@ -366,7 +366,7 @@ Core SPI/DMA pipeline:
 
 - Testing infrastructure:
 - Unity test framework
-- CMock
+- FFF
 - expanded test coverage
 
 **v1.3.0**

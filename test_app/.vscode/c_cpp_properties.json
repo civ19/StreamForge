@@ -3,19 +3,32 @@
         {
             "name": "ESP-IDF",
             "includePath": [
+                "${workspaceFolder}/**",
+                "${workspaceFolder}/../shared/utils",
+                "${workspaceFolder}/../spi_master/main/spi_master_pipeline",
+                "${workspaceFolder}/../spi_slave/main/spi_slave_pipeline",
+                "${workspaceFolder}/../spi_slave/main/buffering",
                 "C:/esp/v5.5.5/esp-idf/components/unity/unity/src",
                 "C:/esp/v5.5.5/esp-idf/components/esp_rom/include",
                 "C:/esp/v5.5.5/esp-idf/components/esp_timer/include",
-                "${workspaceFolder}/../shared/utils",
-                "${workspaceFolder}/**"
+                "C:/esp/v5.5.5/esp-idf/components/freertos/FreeRTOS-Kernel/include",
+                "C:/esp/v5.5.5/esp-idf/components/freertos/esp_additions/include/freertos",
+                "C:/esp/v5.5.5/esp-idf/components/log/include",
+                "C:/esp/v5.5.5/esp-idf/components/esp_hw_support/include",
+                "C:/esp/v5.5.5/esp-idf/components/esp_common/include",
+                "C:/esp/v5.5.5/esp-idf/components/driver/spi/include",
+                "C:/esp/v5.5.5/esp-idf/components/hal/include"
             ],
             "browse": {
                 "path": [
-                    "C:/esp/v5.5.5/esp-idf/components",
-                    "${workspaceFolder}"
+                    "${workspaceFolder}",
+                    "C:/esp/v5.5.5/esp-idf/components"
                 ],
                 "limitSymbolsToIncludedHeaders": false
-            }
+            },
+            "compilerPath": "C:/esp/v5.5.5/esp-idf/tools/tools/xtensa-esp-elf/bin/xtensa-esp32s3-elf-gcc",
+            "cStandard": "c11",
+            "cppStandard": "c++17"
         }
     ],
     "version": 4

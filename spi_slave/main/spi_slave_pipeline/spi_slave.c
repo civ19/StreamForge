@@ -24,6 +24,7 @@
 
 static const char *TAG = "SPI_SLAVE";
 
+
 typedef struct {
     AppBuffer app_buf;
     spi_slave_transaction_t _etrans;

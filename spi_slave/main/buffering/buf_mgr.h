@@ -2,6 +2,7 @@
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
+#include "app_types.h"
 
 extern QueueHandle_t empty_queue;
 extern QueueHandle_t full_queue;
@@ -12,5 +13,6 @@ extern QueueHandle_t full_queue;
 
 
 void buf_setup(void);
+bool process_received_packet(AppBuffer *finished_buf, bool *synced);
 void consumer_task(void* pv);
 void print_stress_results(void);

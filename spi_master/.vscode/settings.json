@@ -1,6 +1,17 @@
 {
-    "idf.customExtraVars": {},
+    "idf.customExtraVars": {
+        "IDF_TARGET": "esp32s3"
+    },
     "idf.currentSetup": "C:\\esp\\v5.5.5\\esp-idf",
-    "idf.portWin": "COM8"
+    "idf.portWin": "COM8",
+    "idf.openOcdConfigs": [
+        "board/esp32s3-builtin.cfg"
+    ],
+    "clangd.path": "C:\\Espressif\\tools\\esp-clang\\esp-19.1.2_20250312\\esp-clang\\bin\\clangd.exe",
+    "clangd.arguments": [
+      "--background-index",
+      "--query-driver=**",
+      "--compile-commands-dir=c:\\Summer_2026\\Embedded\\ESP32\\Projects\\StreamForge\\spi_master\\build"
+    ]
     
 }

@@ -55,7 +55,6 @@ shared/
 spi_master/
   main/
     spi_master_pipeline/
-      CMakeLists.txt
       spi_master.c
       spi_master.h
     CMakeLists.txt
@@ -66,9 +65,7 @@ spi_slave/
     buffering/
       buf_mgr.c
       buf_mgr.h
-      CMakeLists.txt
     spi_slave_pipeline/
-      CMakeLists.txt
       spi_slave.c
       spi_slave.h
     CMakeLists.txt
@@ -82,6 +79,7 @@ test_app/
     main.c
     test_crc.c
   CMakeLists.txt
+  tests.md
 .gitignore
 .repomixignore
 README.md
@@ -129,62 +127,21 @@ ENTRYPOINT [ "/opt/esp/entrypoint.sh" ]
 CMD ["/bin/bash", "-c"]
 </file>
 
-<file path=".repomixignore">
-# Absolute exclusion of Espressif config files
-sdkconfig
-sdkconfig.*
-*.old
-*.ini
-
-# Build and IDE folders
-.pio/
-build/
-.idea/
-.vscode/
-dependencies.lock
-</file>
-
-<file path="shared/utils/CMakeLists.txt">
-# Production - Shared/CMakeLists.txt
-idf_component_register(SRCS "buffering/buf_mgr.c"
-                            "utils/forge_log.c"
-                            "utils/forge_err.c"
-                            "utils/dma_mgr.c"
-                       INCLUDE_DIRS "."
-                       REQUIRES driver)
-</file>
-
-<file path="shared/utils/dma_mgr.c">
-#include "dma_mgr.h"
-#include "forge_err.h"
-#include "forge_log.h"
-
-#include "esp_heap_caps.h"
-
-static const char *TAG = "DMA";
-
-
-void *dma_alloc(size_t size) {
-    return heap_caps_malloc(size, MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
-}
-
-void* dma_slave_alloc(size_t size) {
-    return heap_caps_malloc(size, MALLOC_CAP_DMA );
-}
-</file>
-
-<file path="shared/utils/dma_mgr.h">
+<file path="shared/utils/forge_err.h">
 #pragma once
 
-#include <stddef.h>
+#include "esp_err.h"
 
-#define MAGIC_BYTE 0x5A
-#define PKT_SIZE 16
 
-extern int t_stop;
-void *dma_alloc(size_t size);
-
-void* dma_slave_alloc(size_t size);
+#define CHECK_ERR(expr, action) do { \
+    esp_err_t __macro_err = (expr); \
+    if (__macro_err != ESP_OK) { \
+        mutex_log('E', TAG, "Error 0x%X (%s) at %s:%d", \
+                  __macro_err, esp_err_to_name(__macro_err), \
+                  __FILE__, __LINE__); \
+        action; \
+    } \
+} while(0)
 </file>
 
 <file path="shared/utils/forge_log.c">
@@ -242,12 +199,84 @@ extern SemaphoreHandle_t printMutex;
 void mutex_log(char type, const char *tag, const char *format, ...);
 </file>
 
-<file path="spi_master/main/spi_master_pipeline/CMakeLists.txt">
-idf_component_register(
-    SRCS "spi_master.c"
-    INCLUDE_DIRS "."
-    PRIV_REQUIRES esp_rom
-)
+<file path="spi_master/CMakeLists.txt">
+cmake_minimum_required(VERSION 3.16)
+
+include($ENV{IDF_PATH}/tools/cmake/project.cmake)
+project(spi_master)
+</file>
+
+<file path="test_app/tests.md">
+Right-sized: 8 tests
+These are the ones that each back a specific resume claim or produce a real interview story:
+
+heap_caps_malloc returns NULL → clean error, no crash - done 
+Oversized payload → dropped, no write past the end
+Wrong magic byte → dropped, and downstream not called
+Sequence gap → error counter increments, pipeline continues
+Sequence counter wraparound → no false error
+spi_device_transmit fails → error propagated and buffer released
+Transaction length set in bits, not bytes
+Alloc/free loop → zero heap delta
+
+my goal is to go fast but still write code. do i have enough info for the first heap caps test?
+</file>
+
+<file path="StreamForge.code-workspace">
+{
+	"folders": [
+		{
+			"name": "Production - Master",
+			"path": "./spi_master"
+		},
+		{
+			"name": "Production - Slave",
+			"path": "./spi_slave"
+		},
+		{
+			"name": "Production - Test",
+			"path": "./test_app"
+		},
+		{
+			"name": "Production - Shared",
+			"path": "./shared"
+		}
+	],
+	"settings": {}
+}
+</file>
+
+<file path="shared/utils/dma_mgr.c">
+#include "dma_mgr.h"
+#include "forge_err.h"
+#include "forge_log.h"
+
+#include "esp_heap_caps.h"
+
+static const char *TAG = "DMA";
+
+
+void *dma_alloc(size_t size) {
+    return heap_caps_malloc(size, MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
+}
+
+void* dma_slave_alloc(size_t size) {
+    return heap_caps_malloc(size, MALLOC_CAP_DMA );
+}
+</file>
+
+<file path="shared/utils/dma_mgr.h">
+#pragma once
+
+#include <stddef.h>
+
+#define MAGIC_BYTE 0x5A
+#define PKT_SIZE 16
+
+extern int t_stop;
+void *dma_alloc(size_t size);
+
+void* dma_slave_alloc(size_t size);
 </file>
 
 <file path="spi_master/main/spi_master_pipeline/spi_master.c">
@@ -448,28 +477,6 @@ esp_err_t check_bufs(uint8_t* tx_buf, uint8_t* rx_buf, const char* msg);
 esp_err_t scale_buf_alloc(uint8_t** tx_buf, uint8_t** rx_buf, size_t n_bufs, size_t bytes);
 </file>
 
-<file path="spi_master/CMakeLists.txt">
-cmake_minimum_required(VERSION 3.16)
-
-include($ENV{IDF_PATH}/tools/cmake/project.cmake)
-project(spi_master)
-</file>
-
-<file path="spi_slave/main/buffering/CMakeLists.txt">
-idf_component_register(
-    SRCS "buf_mgr.c"
-    INCLUDE_DIRS "."
-)
-</file>
-
-<file path="spi_slave/main/spi_slave_pipeline/CMakeLists.txt">
-idf_component_register(
-    SRCS "spi_slave.c"
-    INCLUDE_DIRS "."
-    PRIV_REQUIRES esp_rom
-)
-</file>
-
 <file path="spi_slave/main/spi_slave_pipeline/spi_slave.h">
 #pragma once
 
@@ -501,87 +508,19 @@ DEFINE_FFF_GLOBALS;
 
 </file>
 
-<file path=".gitignore">
-# macOS
-.DS_Store
-.AppleDouble
-.LSOverride
-
-# Directory metadata
-.directory
-
-# Temporary files
-*~
-*.swp
-*.swo
-*.bak
-*.tmp
-
-# Log files
-*.log
-
-# Build artifacts and directories
-**/build/
-build/
-*.o
-*.a
-*.out
-*.exe # For any host-side utilities compiled on Windows
-
-# ESP-IDF specific build outputs
-*.bin
-*.elf
-*.map
-flasher_args.json # Generated in build directory
-sdkconfig.old
+<file path=".repomixignore">
+# Absolute exclusion of Espressif config files
 sdkconfig
+sdkconfig.*
+*.old
+*.ini
 
-# ESP-IDF dependencies
-# For older versions or manual component management
-/components/.idf/
-**/components/.idf/
-# For modern ESP-IDF component manager
-managed_components/
-# If ESP-IDF tools are installed/referenced locally to the project
-.espressif/
-
-# CMake generated files
-CMakeCache.txt
-CMakeFiles/
-cmake_install.cmake
-install_manifest.txt
-CTestTestfile.cmake
-
-# Python environment files
-*.pyc
-*.pyo
-*.pyd
-__pycache__/
-*.egg-info/
-dist/
-
-# Virtual environment folders
-venv/
-.venv/
-env/
-
-# Language Servers
-.clangd/
-.ccls-cache/
-compile_commands.json
-
-# Windows specific
-Thumbs.db
-ehthumbs.db
-Desktop.ini
-
-# User-specific configuration files
-*.user
-*.workspace # General workspace files, can be from various tools
-*.suo       # Visual Studio Solution User Options
-*.sln.docstates # Visual Studio
-
-.xml
+# Build and IDE folders
+.pio/
+build/
+.idea/
+.vscode/
+dependencies.lock
 </file>
 
 <file path="README.md">
@@ -952,7 +891,7 @@ Core SPI/DMA pipeline:
 
 - Testing infrastructure:
 - Unity test framework
-- CMock
+- FFF
 - expanded test coverage
 
 **v1.3.0**
@@ -981,45 +920,27 @@ Potential extensions include:
 These are intentionally secondary to keeping the core pipeline understandable and reliable.
 </file>
 
-<file path="StreamForge.code-workspace">
-{
-	"folders": [
-		{
-			"name": "Production - Master",
-			"path": "./spi_master"
-		},
-		{
-			"name": "Production - Slave",
-			"path": "./spi_slave"
-		},
-		{
-			"name": "Production - Test",
-			"path": "./test_app"
-		},
-		{
-			"name": "Production - Shared",
-			"path": "./shared"
-		}
-	],
-	"settings": {}
-}
+<file path="shared/utils/CMakeLists.txt">
+# Production - Shared/CMakeLists.txt
+idf_component_register(SRCS "forge_log.c"
+                            "dma_mgr.c"
+                       INCLUDE_DIRS "."
+                       REQUIRES driver)
 </file>
 
-<file path="shared/utils/forge_err.h">
+<file path="shared/utils/app_types.h">
 #pragma once
+#include <inttypes.h>
 
-#include "esp_err.h"
+#define DATA_SIZE 14
 
+#include "dma_mgr.h"
 
-#define CHECK_ERR(expr, action) do { \
-    esp_err_t __macro_err = (expr); \
-    if (__macro_err != ESP_OK) { \
-        mutex_log('E', TAG, "Error 0x%X (%s) at %s:%d", \
-                  __macro_err, esp_err_to_name(__macro_err), \
-                  __FILE__, __LINE__); \
-        action; \
-    } \
-} while(0)
+typedef struct {
+    uint8_t id;
+    uint8_t *tx_buf;
+    uint8_t *rx_buf;
+} AppBuffer;
 </file>
 
 <file path="spi_slave/main/spi_slave_pipeline/spi_slave.c">
@@ -1048,6 +969,7 @@ These are intentionally secondary to keeping the core pipeline understandable an
 
 
 static const char *TAG = "SPI_SLAVE";
+
 
 typedef struct {
     AppBuffer app_buf;
@@ -1202,54 +1124,16 @@ void slave_transmit_task(void *pv) {
 <file path="test_app/main/main.c">
 #include "unity.h"
 
+extern void test_dma_alloc_returns_null_cleanly(void);
+
+
 void app_main(void) {
     
+    UNITY_BEGIN();
+    RUN_TEST(test_dma_alloc_returns_null_cleanly);
+
+    UNITY_END();
 }
-</file>
-
-<file path="shared/utils/app_types.h">
-#pragma once
-#include <inttypes.h>
-
-#define DATA_SIZE 14
-
-#include "dma_mgr.h"
-
-typedef struct {
-    uint8_t id;
-    uint8_t *tx_buf;
-    uint8_t *rx_buf;
-} AppBuffer;
-</file>
-
-<file path="test_app/main/CMakeLists.txt">
-# 1. 🏆 THE COMPATIBLE MOCK GENERATOR (The Official ESP-IDF Way):
-# Pass the explicit header files you want CMock to generate.
-# This macro handles the code generation AND registers the component under the hood.
-idf_component_mock(
-    MOCK_HEADER_FILES 
-        "C:/esp/v5.5.5/esp-idf/components/freertos/include/freertos/queue.h"
-    INCLUDE_DIRS
-        "."
-    REQUIRES 
-        spi_master_pipeline 
-        spi_slave_pipeline 
-        buffering 
-        utils 
-        unity
-)
-
-
-idf_component_register(
-    SRCS 
-        "main.c"
-        "test_crc.c"
-    INCLUDE_DIRS 
-        "."
-    PRIV_REQUIRES
-        # Links your main app runner against the generated mocks
-        main
-)
 </file>
 
 <file path="test_app/CMakeLists.txt">
@@ -1269,15 +1153,171 @@ include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 project(streamforge_tests)
 </file>
 
+<file path=".gitignore">
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Directory metadata
+.directory
+
+# Temporary files
+*~
+*.swp
+*.swo
+*.bak
+*.tmp
+
+# Log files
+*.log
+
+# Build artifacts and directories
+**/build/
+build/
+*.o
+*.a
+*.out
+*.exe # For any host-side utilities compiled on Windows
+
+# ESP-IDF specific build outputs
+*.bin
+*.elf
+*.map
+flasher_args.json # Generated in build directory
+sdkconfig.old
+sdkconfig
+
+# ESP-IDF dependencies
+# For older versions or manual component management
+/components/.idf/
+**/components/.idf/
+# For modern ESP-IDF component manager
+managed_components/
+# If ESP-IDF tools are installed/referenced locally to the project
+.espressif/
+
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+install_manifest.txt
+CTestTestfile.cmake
+
+# Python environment files
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+*.egg-info/
+dist/
+
+# Virtual environment folders
+venv/
+.venv/
+env/
+
+# Language Servers
+.clangd/
+.ccls-cache/
+compile_commands.json
+
+# Windows specific
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# User-specific configuration files
+*.user
+*.workspace # General workspace files, can be from various tools
+*.suo       # Visual Studio Solution User Options
+*.sln.docstates # Visual Studio
+
+.xml
+.repomixigno
+</file>
+
+<file path="spi_slave/CMakeLists.txt">
+cmake_minimum_required(VERSION 3.16)
+
+
+include($ENV{IDF_PATH}/tools/cmake/project.cmake)
+project(spi_slave)
+</file>
+
+<file path="test_app/main/CMakeLists.txt">
+idf_component_register(
+    SRCS 
+        "main.c"
+        "test_crc.c"
+        "fff_globals.c"
+        "../../spi_master/main/spi_master_pipeline/spi_master.c"
+    INCLUDE_DIRS 
+        "."
+        "../../spi_master/main/spi_master_pipeline"
+        "../../shared/utils"
+    REQUIRES
+        utils
+        unity
+        esp_timer
+        esp_driver_spi
+        esp_rom
+)
+</file>
+
 <file path="test_app/main/test_crc.c">
 #include "unity.h"
-
+#include "fff.h"
 #include "app_types.h"
+#include "forge_log.h"
+
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/queue.h"
 
 
+#include "spi_master.h"
+
+FAKE_VALUE_FUNC(void *, dma_alloc, size_t);
 
 
+void setUp(void) {
+    RESET_FAKE(dma_alloc);
+}
 
+void tearDown(void) {
+    
+}
+
+void test_dma_alloc_returns_null_cleanly(void) {
+    //ARRANGE
+    dma_alloc_fake.return_val = NULL; //should return null
+    
+    
+    uint8_t *tx[1] = {0};
+    uint8_t *rx[1] = {0};
+
+    esp_err_t ret = scale_buf_alloc(tx, rx, 1, 16);
+    TEST_ASSERT_EQUAL_HEX32(ESP_ERR_NO_MEM, ret);
+
+}
+
+void test_wrong_magic_byte_drops(void) {
+    //ARRANGE
+    
+    QueueHandle_t empty_queue = xQueueCreate(2, sizeof(AppBuffer *)); //size of ptrs to bufs
+    QueueHandle_t full_queue = xQueueCreate(2, sizeof(AppBuffer *)); 
+
+    uint8_t rx_data[2] = {0x5A, 0x01};
+    uint8_t *rx = rx_data;
+
+    AppBuffer mock_buf = {.rx_buf = rx};
+
+    
+
+
+    
+}
 /*
 Test 1: Absolute Packet Drop (Invalid Magic Byte)
 
@@ -1287,14 +1327,6 @@ What it tests: A packet arrives with correct CRC but Byte 0 is missing the 0x5A 
 Expected behavior: The application must instantly discard the block, 
 execute zero business logic, and recycle the exact same pointer back to the empty_queue
 */
-</file>
-
-<file path="spi_slave/CMakeLists.txt">
-cmake_minimum_required(VERSION 3.16)
-
-
-include($ENV{IDF_PATH}/tools/cmake/project.cmake)
-project(spi_slave)
 </file>
 
 <file path="spi_slave/main/buffering/buf_mgr.h">
@@ -1314,39 +1346,6 @@ extern QueueHandle_t full_queue;
 void buf_setup(void);
 void consumer_task(void* pv);
 void print_stress_results(void);
-</file>
-
-<file path="spi_master/main/CMakeLists.txt">
-idf_component_register(SRCS "main.c"
-                            "spi_master_pipeline/spi_master.c"
-                            "../../shared/utils/forge_log.c"
-                            "../../shared/utils/dma_mgr.c"
-                    
-                    INCLUDE_DIRS "."
-                                 "spi_master_pipeline"
-                                 "../../shared/utils"
-                                 
-                    REQUIRES driver
-                             esp_driver_spi
-                             esp_rom
-                             
-                    )
-</file>
-
-<file path="spi_slave/main/CMakeLists.txt">
-idf_component_register(SRCS "main.c"
-                            "spi_slave_pipeline/spi_slave.c"
-                            "../../shared/utils/forge_log.c"
-                            "../../shared/utils/dma_mgr.c"
-                            "buffering/buf_mgr.c"
-                    
-                    INCLUDE_DIRS "."
-                                 "spi_slave_pipeline"
-                                 "../../shared/utils"
-                    REQUIRES driver
-                             esp_timer
-                             esp_rom
-                    )
 </file>
 
 <file path="spi_master/main/main.c">
@@ -1378,6 +1377,40 @@ void app_main(void) {
     xTaskCreatePinnedToCore(master_transmit_task, "MasterTransmit", 8192, NULL, 5, NULL, 1);
     
 }
+</file>
+
+<file path="spi_slave/main/CMakeLists.txt">
+idf_component_register(SRCS "main.c"
+                            "spi_slave_pipeline/spi_slave.c"
+                            "../../shared/utils/forge_log.c"
+                            "../../shared/utils/dma_mgr.c"
+                            "buffering/buf_mgr.c"
+                    
+                    INCLUDE_DIRS "."
+                                 "spi_slave_pipeline"
+                                 "../../shared/utils"
+                    REQUIRES driver
+                             esp_timer
+                             esp_rom
+                    )
+</file>
+
+<file path="spi_master/main/CMakeLists.txt">
+idf_component_register(SRCS "main.c"
+                            "spi_master_pipeline/spi_master.c"
+                            "../../shared/utils/forge_log.c"
+                            "../../shared/utils/dma_mgr.c"
+                    
+                    INCLUDE_DIRS "."
+                                 "spi_master_pipeline"
+                                 "../../shared/utils"
+                                 
+                    REQUIRES driver
+                             esp_driver_spi
+                             esp_rom
+                             
+                             
+                    )
 </file>
 
 <file path="spi_slave/main/main.c">
