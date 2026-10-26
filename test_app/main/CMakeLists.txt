@@ -2,9 +2,16 @@ idf_component_register(
     SRCS 
         "main.c"
         "test_crc.c"
+        "fff_globals.c"
+        "../../spi_master/main/spi_master_pipeline/spi_master.c"
     INCLUDE_DIRS 
         "."
-    PRIV_REQUIRES
+        "../../spi_master/main/spi_master_pipeline"
+        "../../shared/utils"
+    REQUIRES
         utils
         unity
+        esp_timer
+        esp_driver_spi
+        esp_rom
 )

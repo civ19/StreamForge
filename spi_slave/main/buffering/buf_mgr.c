@@ -38,87 +38,90 @@ QueueHandle_t empty_queue = NULL;
 QueueHandle_t full_queue = NULL;
 
 
+bool process_received_packet(AppBuffer *finished_buf, bool *synced) {
+    if(!finished_buf || !finished_buf->rx_buf) return false;
+
+    //magic check
+    if(finished_buf->rx_buf[0] != MAGIC_BYTE) {
+        mutex_log('W', TAG, "Malformed packet detected! Dropping frame.");
+        memset(finished_buf->rx_buf, 0x00, PKT_SIZE);
+        memset(finished_buf->tx_buf, 0x00, PKT_SIZE);
+        pkt_malf++;
+        return false; //dropped
+    }
+
+    //crc check
+
+    uint16_t actual_crc = (finished_buf->rx_buf[PKT_SIZE - 1] << 8) | finished_buf->rx_buf[PKT_SIZE-2];
+    uint16_t exp_crc = esp_rom_crc16_le(0, finished_buf->rx_buf, DATA_SIZE);
+
+    if(exp_crc != actual_crc) {
+        mutex_log('W', TAG, "CRC - Malformed packet detected! Dropping frame.");
+        mmemset(finished_buf->rx_buf, 0x00, PKT_SIZE);
+        memset(finished_buf->tx_buf, 0x00, PKT_SIZE);
+        pkt_malf++;
+
+        return false;
+
+    }
+
+    //seq check
+    bool valid = true;
+
+    uint8_t received_seq = finished_buf->rx_buf[1];
+    if((*synced) == false) {
+        exp_seq = received_seq;
+        *synced = true; 
+        mutex_log('I', TAG, "First packet caught! Synced sequence marker.");
+    }
+
+    if(received_seq != exp_seq) {
+        if(xSemaphoreTake(printMutex, portMAX_DELAY)) {
+            ESP_LOGW(TAG, "Sequences Malform[DMA]! Expected Seq %d but got %d. Attempting resync...", exp_seq, received_seq);   
+            xSemaphoreGive(printMutex);
+        }
+        
+        exp_seq = received_seq;
+        valid = false;
+        seq_err++;
+    }
+
+    exp_seq++;
+
+    memset(finished_buf->rx_buf, 0x00, PKT_SIZE);
+    memset(finished_buf->tx_buf, 0x00, PKT_SIZE);
+
+    if(valid) pkt_valid++;
+    return true;
+
+}
+
+
 void consumer_task(void *pv) {
     AppBuffer *finished_buf = NULL;
     
     uint8_t received_seq;
     
     bool synced = false;
-    bool valid = true;
 
     mutex_log('I', TAG, "Flushing stale buffer tokens on boot...");
-
     mutex_log('I', TAG, "Pipeline flushed. Starting operational sync.");
 
     while(test_dur - esp_timer_get_time() > 0) {
 
-        valid = true;
-        
-
+    
         mutex_log('I', TAG, "Ownership to CPU. Clearing bufs.");
         if(xQueueReceive(full_queue, &finished_buf, pdMS_TO_TICKS(1000))) {
             pkt_rec++;
 
-            received_seq = finished_buf->rx_buf[1];
-
-            //packet validation pass 1
-            if(finished_buf->rx_buf[0] != MAGIC_BYTE) {
-                mutex_log('W', TAG, "Malformed packet detected! Dropping frame.");
-                memset(finished_buf->rx_buf, 0x00, PKT_SIZE);
-                memset(finished_buf->tx_buf, 0x00, PKT_SIZE);
-                pkt_malf++;
-
-                xQueueSend(empty_queue, &finished_buf, 0);
-                continue;
-            }
-
-            //pass 2: crc
-            uint16_t received_crc = (finished_buf->rx_buf[PKT_SIZE - 1] << 8) | finished_buf->rx_buf[PKT_SIZE - 2]; //bitmask for crc
-            uint16_t curr_crc = esp_rom_crc16_le(0, finished_buf->rx_buf, DATA_SIZE);
-
-            if(curr_crc != received_crc) {
-                mutex_log('W', TAG, "CRC Checksum invalid! Corrupted Packet! Dropping frame.");
-                pkt_malf++;
-
-                memset(finished_buf->rx_buf, 0x00, PKT_SIZE);
-                memset(finished_buf->tx_buf, 0x00, PKT_SIZE);
-                xQueueSend(empty_queue, &finished_buf, 0);
-                continue;
-            }
-
-            //pass 3: seq
-
-            if(synced == false) {
-                exp_seq = received_seq;
-                synced = true;
-                mutex_log('I', TAG, "First packet caught! Synced sequence marker.");
-            }
-
-            if(received_seq != exp_seq) {
-                if(xSemaphoreTake(printMutex, portMAX_DELAY)) {
-                    ESP_LOGW(TAG, "Sequences Malform[DMA]! Expected Seq %d but got %d. Attempting resync...", exp_seq, received_seq);   
-                    xSemaphoreGive(printMutex);
-                }
+            process_received_packet(finished_buf, &synced); //processing our packet then we send it over
                 
-                exp_seq = received_seq;
-                valid = false;
-                seq_err++;
-            }
-            
-            exp_seq++;
-            
-            memset(finished_buf->rx_buf, 0x00, PKT_SIZE);
-            memset(finished_buf->tx_buf, 0x00, PKT_SIZE);
+            xQueueSend(empty_queue, &finished_buf, 0); //send it even if it fails so we can continue the pipeline
 
-            mutex_log('E', TAG, "CPU Clearing Complete! Transferring to DMA.");
-            if(valid) pkt_valid++;
-            xQueueSend(empty_queue, &finished_buf, 0);
         } else { 
             mutex_log('E', TAG, "Timeout failed. No new buffer on time to CPU. Continuing pipeline...");
             task_timeout++;
         }
-            
-        
     }
 
     print_stress_results();
