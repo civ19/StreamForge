@@ -59,11 +59,6 @@ esp_err_t init_slave_bus(void) {
 
 }
 
-char string_buf[60];
-
-memset("string", &string_buf, 5);
-
-const char* string
 
 void init_trans(spi_slave_transaction_t *_trans, uint8_t *tx_buf, uint8_t *rx_buf, size_t p_size) { 
 

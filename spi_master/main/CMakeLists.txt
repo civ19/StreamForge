@@ -11,4 +11,5 @@ idf_component_register(SRCS "main.c"
                              esp_driver_spi
                              esp_rom
                              
+                             
                     )

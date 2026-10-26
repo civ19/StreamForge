@@ -1,10 +1,18 @@
 #include "unity.h"
-
+#include "fff.h"
 #include "app_types.h"
 
 
+FAKE_VALUE_FUNC(void *, dma_alloc, size_t);
 
 
+void setUp(void) {
+    RESET_FAKE(dma_alloc);
+}
+TEST_CASE("Calling dma_alloc returns NULL cleanly with no crash.", "[DMA_ALLOC]") 
+{
+
+}
 
 /*
 Test 1: Absolute Packet Drop (Invalid Magic Byte)

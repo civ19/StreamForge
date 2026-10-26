@@ -44,8 +44,6 @@ The content is organized as follows:
   devcontainer.json
   Dockerfile
 shared/
-  .vscode/
-    settings.json
   utils/
     app_types.h
     CMakeLists.txt
@@ -55,9 +53,6 @@ shared/
     forge_log.c
     forge_log.h
 spi_master/
-  .vscode/
-    c_cpp_properties.json
-    settings.json
   main/
     spi_master_pipeline/
       CMakeLists.txt
@@ -67,9 +62,6 @@ spi_master/
     main.c
   CMakeLists.txt
 spi_slave/
-  .vscode/
-    c_cpp_properties.json
-    settings.json
   main/
     buffering/
       buf_mgr.c
@@ -83,14 +75,15 @@ spi_slave/
     main.c
   CMakeLists.txt
 test_app/
-  .vscode/
-    c_cpp_properties.json
   main/
     CMakeLists.txt
+    fff_globals.c
+    fff.h
     main.c
     test_crc.c
   CMakeLists.txt
 .gitignore
+.repomixignore
 README.md
 StreamForge.code-workspace
 </directory_structure>
@@ -136,10 +129,19 @@ ENTRYPOINT [ "/opt/esp/entrypoint.sh" ]
 CMD ["/bin/bash", "-c"]
 </file>
 
-<file path="shared/.vscode/settings.json">
-{
-    "cmake.sourceDirectory": "C:/Summer_2026/Embedded/ESP32/Projects/StreamForge/shared/utils"
-}
+<file path=".repomixignore">
+# Absolute exclusion of Espressif config files
+sdkconfig
+sdkconfig.*
+*.old
+*.ini
+
+# Build and IDE folders
+.pio/
+build/
+.idea/
+.vscode/
+dependencies.lock
 </file>
 
 <file path="shared/utils/CMakeLists.txt">
@@ -150,87 +152,6 @@ idf_component_register(SRCS "buffering/buf_mgr.c"
                             "utils/dma_mgr.c"
                        INCLUDE_DIRS "."
                        REQUIRES driver)
-</file>
-
-<file path=".gitignore">
-# macOS
-.DS_Store
-.AppleDouble
-.LSOverride
-
-# Directory metadata
-.directory
-
-# Temporary files
-*~
-*.swp
-*.swo
-*.bak
-*.tmp
-
-# Log files
-*.log
-
-# Build artifacts and directories
-**/build/
-build/
-*.o
-*.a
-*.out
-*.exe # For any host-side utilities compiled on Windows
-
-# ESP-IDF specific build outputs
-*.bin
-*.elf
-*.map
-flasher_args.json # Generated in build directory
-sdkconfig.old
-sdkconfig
-
-# ESP-IDF dependencies
-# For older versions or manual component management
-/components/.idf/
-**/components/.idf/
-# For modern ESP-IDF component manager
-managed_components/
-# If ESP-IDF tools are installed/referenced locally to the project
-.espressif/
-
-# CMake generated files
-CMakeCache.txt
-CMakeFiles/
-cmake_install.cmake
-install_manifest.txt
-CTestTestfile.cmake
-
-# Python environment files
-*.pyc
-*.pyo
-*.pyd
-__pycache__/
-*.egg-info/
-dist/
-
-# Virtual environment folders
-venv/
-.venv/
-env/
-
-# Language Servers
-.clangd/
-.ccls-cache/
-compile_commands.json
-
-# Windows specific
-Thumbs.db
-ehthumbs.db
-Desktop.ini
-
-# User-specific configuration files
-*.user
-*.workspace # General workspace files, can be from various tools
-*.suo       # Visual Studio Solution User Options
-*.sln.docstates # Visual Studio
 </file>
 
 <file path="shared/utils/dma_mgr.c">
@@ -549,188 +470,6 @@ idf_component_register(
 )
 </file>
 
-<file path="spi_slave/main/spi_slave_pipeline/spi_slave.c">
-#include "spi_slave.h"
-
-#include "driver/spi_slave.h"
-#include "driver/gpio.h"
-#include "esp_log.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "freertos/queue.h"
-#include "buffering/buf_mgr.h"
-
-#include "forge_err.h"
-#include "forge_log.h"
-#include "dma_mgr.h"
-
-#include <stddef.h>
-
-//esp32s3
-// ESP32-S3 wroom — SPI master
-#define MOSI GPIO_NUM_11
-#define MISO GPIO_NUM_13
-#define SCLK GPIO_NUM_12
-#define CS   GPIO_NUM_10
-
-
-static const char *TAG = "SPI_SLAVE";
-
-typedef struct {
-    AppBuffer app_buf;
-    spi_slave_transaction_t _etrans;
-    
-} EngineBuffer;
-
-esp_err_t init_slave_bus(void) {
-    spi_bus_config_t slave_bus_conf = {};
-    slave_bus_conf.mosi_io_num = MOSI;
-    slave_bus_conf.miso_io_num = MISO;
-    slave_bus_conf.max_transfer_sz = 1024;
-    slave_bus_conf.quadhd_io_num = -1;
-    slave_bus_conf.quadwp_io_num = -1;
-    slave_bus_conf.sclk_io_num = SCLK;
-    
-
-    mutex_log('I', TAG, "SPI Slave bus initialized.");
-    esp_err_t ret;
-
-     
-
-    spi_slave_interface_config_t slave_cfg = {};
-    slave_cfg.mode = 0;
-    slave_cfg.queue_size = 1;
-    slave_cfg.spics_io_num = CS;
-
-    CHECK_ERR(ret = spi_slave_initialize(SPI2_HOST, &slave_bus_conf, &slave_cfg, SPI_DMA_CH_AUTO), return ret);
-
-    mutex_log('I', TAG, "SPI Slave dev initialized.");
-    return ESP_OK;
-    
-
-
-}
-
-char string_buf[60];
-
-memset("string", &string_buf, 5);
-
-const char* string
-
-void init_trans(spi_slave_transaction_t *_trans, uint8_t *tx_buf, uint8_t *rx_buf, size_t p_size) { 
-
-    memset(_trans, 0, sizeof(spi_slave_transaction_t)); //clearing the mem loc
-    //setting the buffers
-    _trans->tx_buffer = tx_buf;
-    _trans->rx_buffer = rx_buf;
-    _trans->length = p_size * 8;
-
-}
-
-esp_err_t check_bufs(uint8_t* tx_buf, uint8_t* rx_buf, const char* msg) {
-
-    if (tx_buf == NULL || rx_buf == NULL) { //validation check 
-        mutex_log('E', TAG, msg);
-        free(tx_buf);
-        free(rx_buf);
-        return ESP_ERR_NO_MEM;
-    }
-
-    return ESP_OK;
-    
-}
-
-esp_err_t scale_buf_alloc(uint8_t **tx_buf, uint8_t** rx_buf, size_t n_bufs, size_t bytes) {
-    
-    esp_err_t ret;
-
-    for(int i = 0; i<n_bufs; i++) { //allocating the bytes. n_bufs ius number of buffers were doing, which is equal to the trasnactions numnber
-        tx_buf[i] = dma_alloc(bytes);
-        rx_buf[i] = dma_alloc(bytes);
-
-        ret = check_bufs(tx_buf[i], rx_buf[i], "dma_alloc Pre loop failed. No Memory.");
-        if (ret != ESP_OK) return ret;
-    }
-
-    return ESP_OK;
-}
-
-static EngineBuffer bufs[2];
-
-esp_err_t init_slave_engine_bufs(QueueHandle_t to_empty_queue) {
-    for(int i = 0; i<2; i++) {
-        //allocate dma buffers
-        bufs[i].app_buf.rx_buf = dma_alloc(PKT_SIZE);
-        bufs[i].app_buf.tx_buf = dma_alloc(PKT_SIZE);
-        bufs[i].app_buf.id = i;
-
-        //assertions
-        assert(bufs[i].app_buf.rx_buf != NULL);
-        assert(bufs[i].app_buf.tx_buf != NULL);
-
-        //setting to 0
-        memset(bufs[i].app_buf.rx_buf, 0x00, PKT_SIZE); //setting a pkt_size buffer to 0
-        memset(bufs[i].app_buf.tx_buf, 0x00, PKT_SIZE); //setting a pkt_size buffer to 0
-        memset(&bufs[i]._etrans, 0, sizeof(spi_slave_transaction_t));
-
-        //spi hardware config
-        init_trans(&bufs[i]._etrans, bufs[i].app_buf.tx_buf, bufs[i].app_buf.rx_buf, PKT_SIZE);
-
-        bufs[i]._etrans.user = (void*)&bufs[i].app_buf; //safe bucket
-
-        //pushing app buf 
-        AppBuffer *pv_app = &bufs[i].app_buf;
-        xQueueSend(to_empty_queue, &pv_app, 0);
-    }
-
-    return ESP_OK;
-}
-
-
-void slave_transmit_task(void *pv) {
-    printf("SLAVE TASK STARTED\n");
-    esp_err_t ret;
-
-    AppBuffer *empty_buf = NULL;         
-    spi_slave_transaction_t *ret_trans = NULL; 
-
-    // PRIME THE PIPELINE: Load BOTH hardware slots immediately at startup
-    for (int i = 0; i < 2; i++) {
-        if (xQueueReceive(empty_queue, &empty_buf, portMAX_DELAY)) {
-            EngineBuffer *engine_buf = (EngineBuffer *)((char *)empty_buf - offsetof(EngineBuffer, app_buf));
-            spi_slave_queue_trans(SPI2_HOST, &engine_buf->_etrans, portMAX_DELAY);
-        }
-    }
-
-    for(;;) {
-     
-        //block until the oldest queued transaction completes
-        ret = spi_slave_get_trans_result(SPI2_HOST, &ret_trans, pdMS_TO_TICKS(1000)); //result goes in ret trans
-
-        if (ret == ESP_ERR_TIMEOUT) continue; 
-        else if (ret != ESP_OK) {
-            mutex_log('E', TAG, "Fatal Hardware SPI Transaction Error!");
-            vTaskDelete(NULL);
-        }
-
-        //extract the clean application token from the finished transaction's bucket
-        AppBuffer *finished_buf = (AppBuffer *)ret_trans->user;
-
-      
-        // This prints out the rx_buf array values up to PKT_SIZE in Hex format
-        ESP_LOG_BUFFER_HEX("SPI_SLAVE_ENGINE", finished_buf->rx_buf, PKT_SIZE);
-
-        //transfer the clean public token over to the application layer / CPU
-        xQueueSend(full_queue, &finished_buf, 0);
-
-        if(xQueueReceive(empty_queue, &empty_buf, portMAX_DELAY)) {
-            EngineBuffer *engine_buf = (EngineBuffer *)((char*)empty_buf - offsetof(EngineBuffer, app_buf));
-            spi_slave_queue_trans(SPI2_HOST, &engine_buf->_etrans, portMAX_DELAY);
-        }
-    }
-}
-</file>
-
 <file path="spi_slave/main/spi_slave_pipeline/spi_slave.h">
 #pragma once
 
@@ -750,6 +489,99 @@ void init_trans(spi_slave_transaction_t *_trans, uint8_t *tx_buf, uint8_t *rx_bu
 esp_err_t check_bufs(uint8_t* tx_buf, uint8_t* rx_buf, const char* msg);
 esp_err_t scale_buf_alloc(uint8_t** tx_buf, uint8_t** rx_buf, size_t n_bufs, size_t bytes);
 esp_err_t init_slave_engine_bufs(QueueHandle_t to_empty_queue);
+</file>
+
+<file path="test_app/main/fff_globals.c">
+/* test_app/main/fff_globals.c — ONE file, nowhere else */
+#include "fff.h"
+DEFINE_FFF_GLOBALS;
+</file>
+
+<file path="test_app/main/fff.h">
+
+</file>
+
+<file path=".gitignore">
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Directory metadata
+.directory
+
+# Temporary files
+*~
+*.swp
+*.swo
+*.bak
+*.tmp
+
+# Log files
+*.log
+
+# Build artifacts and directories
+**/build/
+build/
+*.o
+*.a
+*.out
+*.exe # For any host-side utilities compiled on Windows
+
+# ESP-IDF specific build outputs
+*.bin
+*.elf
+*.map
+flasher_args.json # Generated in build directory
+sdkconfig.old
+sdkconfig
+
+# ESP-IDF dependencies
+# For older versions or manual component management
+/components/.idf/
+**/components/.idf/
+# For modern ESP-IDF component manager
+managed_components/
+# If ESP-IDF tools are installed/referenced locally to the project
+.espressif/
+
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+install_manifest.txt
+CTestTestfile.cmake
+
+# Python environment files
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+*.egg-info/
+dist/
+
+# Virtual environment folders
+venv/
+.venv/
+env/
+
+# Language Servers
+.clangd/
+.ccls-cache/
+compile_commands.json
+
+# Windows specific
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# User-specific configuration files
+*.user
+*.workspace # General workspace files, can be from various tools
+*.suo       # Visual Studio Solution User Options
+*.sln.docstates # Visual Studio
+
+.xml
 </file>
 
 <file path="README.md">
@@ -1190,6 +1022,206 @@ These are intentionally secondary to keeping the core pipeline understandable an
 } while(0)
 </file>
 
+<file path="spi_slave/main/spi_slave_pipeline/spi_slave.c">
+#include "spi_slave.h"
+
+#include "driver/spi_slave.h"
+#include "driver/gpio.h"
+#include "esp_log.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/queue.h"
+#include "buffering/buf_mgr.h"
+
+#include "forge_err.h"
+#include "forge_log.h"
+#include "dma_mgr.h"
+
+#include <stddef.h>
+
+//esp32s3
+// ESP32-S3 wroom — SPI master
+#define MOSI GPIO_NUM_11
+#define MISO GPIO_NUM_13
+#define SCLK GPIO_NUM_12
+#define CS   GPIO_NUM_10
+
+
+static const char *TAG = "SPI_SLAVE";
+
+typedef struct {
+    AppBuffer app_buf;
+    spi_slave_transaction_t _etrans;
+    
+} EngineBuffer;
+
+esp_err_t init_slave_bus(void) {
+    spi_bus_config_t slave_bus_conf = {};
+    slave_bus_conf.mosi_io_num = MOSI;
+    slave_bus_conf.miso_io_num = MISO;
+    slave_bus_conf.max_transfer_sz = 1024;
+    slave_bus_conf.quadhd_io_num = -1;
+    slave_bus_conf.quadwp_io_num = -1;
+    slave_bus_conf.sclk_io_num = SCLK;
+    
+
+    mutex_log('I', TAG, "SPI Slave bus initialized.");
+    esp_err_t ret;
+
+     
+
+    spi_slave_interface_config_t slave_cfg = {};
+    slave_cfg.mode = 0;
+    slave_cfg.queue_size = 1;
+    slave_cfg.spics_io_num = CS;
+
+    CHECK_ERR(ret = spi_slave_initialize(SPI2_HOST, &slave_bus_conf, &slave_cfg, SPI_DMA_CH_AUTO), return ret);
+
+    mutex_log('I', TAG, "SPI Slave dev initialized.");
+    return ESP_OK;
+    
+
+
+}
+
+
+void init_trans(spi_slave_transaction_t *_trans, uint8_t *tx_buf, uint8_t *rx_buf, size_t p_size) { 
+
+    memset(_trans, 0, sizeof(spi_slave_transaction_t)); //clearing the mem loc
+    //setting the buffers
+    _trans->tx_buffer = tx_buf;
+    _trans->rx_buffer = rx_buf;
+    _trans->length = p_size * 8;
+
+}
+
+esp_err_t check_bufs(uint8_t* tx_buf, uint8_t* rx_buf, const char* msg) {
+
+    if (tx_buf == NULL || rx_buf == NULL) { //validation check 
+        mutex_log('E', TAG, msg);
+        free(tx_buf);
+        free(rx_buf);
+        return ESP_ERR_NO_MEM;
+    }
+
+    return ESP_OK;
+    
+}
+
+esp_err_t scale_buf_alloc(uint8_t **tx_buf, uint8_t** rx_buf, size_t n_bufs, size_t bytes) {
+    
+    esp_err_t ret;
+
+    for(int i = 0; i<n_bufs; i++) { //allocating the bytes. n_bufs ius number of buffers were doing, which is equal to the trasnactions numnber
+        tx_buf[i] = dma_alloc(bytes);
+        rx_buf[i] = dma_alloc(bytes);
+
+        ret = check_bufs(tx_buf[i], rx_buf[i], "dma_alloc Pre loop failed. No Memory.");
+        if (ret != ESP_OK) return ret;
+    }
+
+    return ESP_OK;
+}
+
+static EngineBuffer bufs[2];
+
+esp_err_t init_slave_engine_bufs(QueueHandle_t to_empty_queue) {
+    for(int i = 0; i<2; i++) {
+        //allocate dma buffers
+        bufs[i].app_buf.rx_buf = dma_alloc(PKT_SIZE);
+        bufs[i].app_buf.tx_buf = dma_alloc(PKT_SIZE);
+        bufs[i].app_buf.id = i;
+
+        //assertions
+        assert(bufs[i].app_buf.rx_buf != NULL);
+        assert(bufs[i].app_buf.tx_buf != NULL);
+
+        //setting to 0
+        memset(bufs[i].app_buf.rx_buf, 0x00, PKT_SIZE); //setting a pkt_size buffer to 0
+        memset(bufs[i].app_buf.tx_buf, 0x00, PKT_SIZE); //setting a pkt_size buffer to 0
+        memset(&bufs[i]._etrans, 0, sizeof(spi_slave_transaction_t));
+
+        //spi hardware config
+        init_trans(&bufs[i]._etrans, bufs[i].app_buf.tx_buf, bufs[i].app_buf.rx_buf, PKT_SIZE);
+
+        bufs[i]._etrans.user = (void*)&bufs[i].app_buf; //safe bucket
+
+        //pushing app buf 
+        AppBuffer *pv_app = &bufs[i].app_buf;
+        xQueueSend(to_empty_queue, &pv_app, 0);
+    }
+
+    return ESP_OK;
+}
+
+
+void slave_transmit_task(void *pv) {
+    printf("SLAVE TASK STARTED\n");
+    esp_err_t ret;
+
+    AppBuffer *empty_buf = NULL;         
+    spi_slave_transaction_t *ret_trans = NULL; 
+
+    // PRIME THE PIPELINE: Load BOTH hardware slots immediately at startup
+    for (int i = 0; i < 2; i++) {
+        if (xQueueReceive(empty_queue, &empty_buf, portMAX_DELAY)) {
+            EngineBuffer *engine_buf = (EngineBuffer *)((char *)empty_buf - offsetof(EngineBuffer, app_buf));
+            spi_slave_queue_trans(SPI2_HOST, &engine_buf->_etrans, portMAX_DELAY);
+        }
+    }
+
+    for(;;) {
+     
+        //block until the oldest queued transaction completes
+        ret = spi_slave_get_trans_result(SPI2_HOST, &ret_trans, pdMS_TO_TICKS(1000)); //result goes in ret trans
+
+        if (ret == ESP_ERR_TIMEOUT) continue; 
+        else if (ret != ESP_OK) {
+            mutex_log('E', TAG, "Fatal Hardware SPI Transaction Error!");
+            vTaskDelete(NULL);
+        }
+
+        //extract the clean application token from the finished transaction's bucket
+        AppBuffer *finished_buf = (AppBuffer *)ret_trans->user;
+
+      
+        // This prints out the rx_buf array values up to PKT_SIZE in Hex format
+        ESP_LOG_BUFFER_HEX("SPI_SLAVE_ENGINE", finished_buf->rx_buf, PKT_SIZE);
+
+        //transfer the clean public token over to the application layer / CPU
+        xQueueSend(full_queue, &finished_buf, 0);
+
+        if(xQueueReceive(empty_queue, &empty_buf, portMAX_DELAY)) {
+            EngineBuffer *engine_buf = (EngineBuffer *)((char*)empty_buf - offsetof(EngineBuffer, app_buf));
+            spi_slave_queue_trans(SPI2_HOST, &engine_buf->_etrans, portMAX_DELAY);
+        }
+    }
+}
+</file>
+
+<file path="test_app/main/main.c">
+#include "unity.h"
+
+void app_main(void) {
+    
+}
+</file>
+
+<file path="shared/utils/app_types.h">
+#pragma once
+#include <inttypes.h>
+
+#define DATA_SIZE 14
+
+#include "dma_mgr.h"
+
+typedef struct {
+    uint8_t id;
+    uint8_t *tx_buf;
+    uint8_t *rx_buf;
+} AppBuffer;
+</file>
+
 <file path="test_app/main/CMakeLists.txt">
 # 1. 🏆 THE COMPATIBLE MOCK GENERATOR (The Official ESP-IDF Way):
 # Pass the explicit header files you want CMock to generate.
@@ -1207,9 +1239,7 @@ idf_component_mock(
         unity
 )
 
-# 2. Register your remaining local physical test runner files normally
-# Note: Do not manually re-add "cmock" or the generated files here, 
-# as idf_component_mock hooks into the build system automatically.
+
 idf_component_register(
     SRCS 
         "main.c"
@@ -1220,14 +1250,6 @@ idf_component_register(
         # Links your main app runner against the generated mocks
         main
 )
-</file>
-
-<file path="test_app/main/main.c">
-#include "unity.h"
-
-void app_main(void) {
-    
-}
 </file>
 
 <file path="test_app/CMakeLists.txt">
@@ -1247,63 +1269,11 @@ include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 project(streamforge_tests)
 </file>
 
-<file path="shared/utils/app_types.h">
-#pragma once
-#include <inttypes.h>
-
-#define DATA_SIZE 14
-
-#include "dma_mgr.h"
-
-typedef struct {
-    uint8_t id;
-    uint8_t *tx_buf;
-    uint8_t *rx_buf;
-} AppBuffer;
-</file>
-
-<file path="spi_slave/.vscode/settings.json">
-{
-  "idf.buildPath": "${workspaceFolder}/build",
-  "idf.buildPathWin": "${workspaceFolder}\\build",
-  "idf.customExtraVars": {},
-  "idf.currentSetup": "C:\\esp\\v5.5.5\\esp-idf",
-  "idf.portWin": "COM10"
-}
-</file>
-
-<file path="test_app/.vscode/c_cpp_properties.json">
-{
-    "configurations": [
-        {
-            "name": "ESP-IDF",
-            "includePath": [
-                "C:/esp/v5.5.5/esp-idf/components/unity/unity/src",
-                "C:/esp/v5.5.5/esp-idf/components/esp_rom/include",
-                "C:/esp/v5.5.5/esp-idf/components/esp_timer/include",
-                "C:/esp/v5.5.5/esp-idf/components/cmock/CMock/src",
-                "${workspaceFolder}/../shared/utils",
-                "${workspaceFolder}/**"
-            ],
-            "browse": {
-                "path": [
-                    "C:/esp/v5.5.5/esp-idf/components",
-                    "${workspaceFolder}"
-                ],
-                "limitSymbolsToIncludedHeaders": false
-            }
-        }
-    ],
-    "version": 4
-}
-</file>
-
 <file path="test_app/main/test_crc.c">
 #include "unity.h"
-#include "cmock.h"
+
 #include "app_types.h"
 
-#include "mock_queue.h"
 
 
 
@@ -1319,74 +1289,12 @@ execute zero business logic, and recycle the exact same pointer back to the empt
 */
 </file>
 
-<file path="spi_master/.vscode/settings.json">
-{
-    "idf.customExtraVars": {},
-    "idf.currentSetup": "C:\\esp\\v5.5.5\\esp-idf",
-    "idf.portWin": "COM8"
-    
-}
-</file>
-
 <file path="spi_slave/CMakeLists.txt">
 cmake_minimum_required(VERSION 3.16)
 
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 project(spi_slave)
-</file>
-
-<file path="spi_slave/.vscode/c_cpp_properties.json">
-{
-    "configurations": [
-        {
-            "name": "ESP-IDF",
-            "includePath": [
-                "${workspaceFolder}/**",
-                "${workspaceFolder}/main",
-                "${workspaceFolder}/main/spi_slave_pipeline",
-                "${workspaceFolder}/main/buffering",
-                "${workspaceFolder}/../shared/utils"
-            ],
-            "browse": {
-                "path": [
-                    "${workspaceFolder}"
-                ],
-                "limitSymbolsToIncludedHeaders": true
-            },
-            "compileCommands": "${workspaceFolder}/build/compile_commands.json",
-            "cStandard": "c11",
-            "cppStandard": "c++17"
-        }
-    ],
-    "version": 4
-}
-</file>
-
-<file path="spi_master/.vscode/c_cpp_properties.json">
-{
-    "configurations": [
-        {
-            "name": "ESP-IDF",
-            "includePath": [
-                "${workspaceFolder}/**",
-                "${workspaceFolder}/main",
-                "${workspaceFolder}/main/spi_master_pipeline",
-                "${workspaceFolder}/../shared/utils"
-            ],
-            "browse": {
-                "path": [
-                    "${workspaceFolder}"
-                ],
-                "limitSymbolsToIncludedHeaders": true
-            },
-            "compileCommands": "${workspaceFolder}/build/compile_commands.json",
-            "cStandard": "c11",
-            "cppStandard": "c++17"
-        }
-    ],
-    "version": 4
-}
 </file>
 
 <file path="spi_slave/main/buffering/buf_mgr.h">

@@ -1,0 +1,12 @@
+# Absolute exclusion of Espressif config files
+sdkconfig
+sdkconfig.*
+*.old
+*.ini
+
+# Build and IDE folders
+.pio/
+build/
+.idea/
+.vscode/
+dependencies.lock
