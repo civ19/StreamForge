@@ -5,9 +5,6 @@ idf_component_register(
     INCLUDE_DIRS 
         "."
     PRIV_REQUIRES
-        spi_master_pipeline
-        spi_slave_pipeline
-        buffering
         utils
         unity
 )
