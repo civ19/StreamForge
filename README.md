@@ -371,6 +371,15 @@ Core SPI/DMA pipeline:
 
 **v1.3.0**
 
+Closed-loop buffer occupancy control:
+
+-PID-based adaptive rate regulation (where the data source or consumer rate is controllable)
+-Dynamic adjustment of producer/consumer rates
+-Buffer occupancy monitoring and target regulation
+Stability, response-time and underrun/overrun performance benchmarking
+
+**v1.4.0**
+
 - Higher-throughput SPI architecture:
 - Quad SPI
 - larger transactions
